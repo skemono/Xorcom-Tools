@@ -7,7 +7,8 @@ import (
 )
 
 // mysqlCmd reaches the CompletePBX database as root over the socket (no DB password).
-const mysqlCmd = "mysql --batch --default-character-set=utf8 ombutel"
+// --unbuffered flushes each result as it comes, so ApplyPins sees its progress counts live.
+const mysqlCmd = "mysql --batch --unbuffered --default-character-set=utf8 ombutel"
 
 // MySQL sends sql on stdin and returns the rows of its single result set by column name.
 // Keep one SELECT per call: --batch prints consecutive result sets with no separator.

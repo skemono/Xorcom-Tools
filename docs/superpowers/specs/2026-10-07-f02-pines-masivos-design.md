@@ -40,7 +40,7 @@ The F-01 connection test also passed against this box: portal login (API) and SS
 3. **Vista previa (canary copy).** "COPIA — VISTA PREVIA" strip; one numbered line per CSV row: Nº, state cell, PIN, Descripción, Resultado previsto (`Nuevo`, `Ya existe: se omite`, `Sin descripción: se omite`, `Error: <motivo>`). Summary: "5 768 nuevos · 2 ya existen · 0 sin descripción · 8 con error".
    - **Any error row blocks Aplicar** ("Corrija el archivo y vuelva a cargarlo"). Zero `Nuevo` lines also disables it.
    - **Toggle "Incluir PINes sin descripción"** (off by default): off → rows with an empty description are skipped and counted; on → they are loaded with no description (`NULL`). Changing it recomputes the preview.
-   - **Toggle "Solo filas con observaciones"**: shows only rows that are not plain `Nuevo` (errors, already existing, no description), so 8 problem rows are findable among 5 000; it switches on by itself when the file has errors.
+   - **Toggle "Solo filas a revisar"** (first named "Solo filas con observaciones"): shows only rows that are not plain `Nuevo` (errors, already existing, no description) plus rows whose description was adjusted, so 8 problem rows are findable among 5 000; it switches on by itself when the file has errors.
 4. **Aplicar.** Issues a folio, runs the insert (section 5), then **reads the list back** and stamps each line from the read-back, not from the request: violet `APLICADO`, quiet `OMITIDO` (already existed), red `FALLÓ`. The sheet turns from canary to the white working copy; failures turn pink.
 
 Changing the active PBX or the list discards the preview.

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte'
+  import { Events } from '@wailsio/runtime'
   import { PinService } from '../../bindings/github.com/skemono/Xorcom-Tools'
   import type { PinApplyResult, PinPreview } from '../../bindings/github.com/skemono/Xorcom-Tools'
   import type { PinList, PinRow } from '../../bindings/github.com/skemono/Xorcom-Tools/pbx'
@@ -23,9 +24,15 @@
   let otherPending = $state<boolean | null>(null)
   let pendingNote = $state('')
 
+  // While Aplicar runs: PINes written so far (null until the PBX reports), and seconds elapsed.
+  let applying = $state(false)
+  let reloading = $state(false)
+  let done = $state<number | null>(null)
+  let secs = $state(0)
+
   const rows = $derived<PinRow[]>((result?.rows ?? preview?.rows) ?? [])
-  // Thousands of lines: let the user see only the ones that need a look.
-  const shown = $derived(onlyIssues ? rows.filter((r) => r.status !== 'nuevo' && r.status !== 'aplicado') : rows)
+  // Thousands of lines: let the user see only the ones that need a look (adjusted descriptions included).
+  const shown = $derived(onlyIssues ? rows.filter((r) => (r.status !== 'nuevo' && r.status !== 'aplicado') || r.filtered) : rows)
   const canApply = $derived(!!preview && !result && preview.errors === 0 && preview.new > 0 && !app.busy)
   const sepName = (s: string) => (s === 'tab' ? 'tabulador' : `«${s}»`)
   // Thousands grouped with a narrow no-break space, as on printed forms; Spanish plurals.
@@ -95,10 +102,21 @@
     }
   }
 
+  // A ticking clock shows a long step is still alive; returns the stop function.
+  function tick() {
+    secs = 0
+    const t = setInterval(() => secs++, 1000)
+    return () => clearInterval(t)
+  }
+
   async function apply() {
     if (!canApply) return
     app.busy = true
+    applying = true
+    done = null
     note = ''
+    const stop = tick()
+    const off = Events.On('pines:avance', (e) => (done = e.data as number))
     try {
       result = await PinService.Apply(listID)
       app.folio = result.folio
@@ -106,6 +124,9 @@
     } catch (e) {
       note = errText(e)
     } finally {
+      off()
+      stop()
+      applying = false
       app.busy = false
     }
   }
@@ -140,11 +161,16 @@
     }
     confirmReload = false
     app.busy = true
+    reloading = true
+    portalMsg = ''
+    const stop = tick()
     try {
       portalMsg = await PinService.ApplyPortal()
     } catch (e) {
       portalMsg = errText(e)
     } finally {
+      stop()
+      reloading = false
       app.busy = false
     }
   }
@@ -211,7 +237,7 @@
   {#if preview}
     <div class="toggles">
       <label class="check"><input type="checkbox" bind:checked={includeEmpty} onchange={runPreview} disabled={app.busy || !!result} /> Incluir PINes sin descripción</label>
-      <label class="check"><input type="checkbox" bind:checked={onlyIssues} /> Solo filas con observaciones</label>
+      <label class="check"><input type="checkbox" bind:checked={onlyIssues} /> Solo filas a revisar</label>
       {#if onlyIssues}<span class="tag">Mostrando {fmt(shown.length)} de {count(rows.length, 'fila', 'filas')}</span>{/if}
     </div>
     <div class="copy" class:canary={!result}>
@@ -220,6 +246,12 @@
           <span class="lbl">Copia aplicada · Folio <span class="folio-no">Nº {String(result.folio).padStart(4, '0')}</span></span>
           <span class="stamp" class:bad={result.failed > 0} style:--r="-2deg">{result.failed ? 'Con fallas' : 'Aplicado'}</span>
           <span class="sum">{count(result.applied, 'aplicado', 'aplicados')} · {count(result.skipped, 'omitido', 'omitidos')} · {count(result.failed, 'fallido', 'fallidos')}</span>
+        {:else if applying}
+          <span class="lbl">Copia — aplicando</span>
+          <span class="sum" role="status">
+            {done === null ? 'Conectando con la PBX…' : done < preview.new ? `Escribiendo ${fmt(done)} de ${count(preview.new, 'PIN', 'PINes')}` : 'Verificando…'} · <span class="unit">{secs} s</span>
+          </span>
+          <progress class="bar" max={preview.new} value={done ?? 0} aria-label="Avance"></progress>
         {:else}
           <span class="lbl">Copia — vista previa</span>
           <span class="sum">{count(preview.new, 'nuevo', 'nuevos')} · {count(preview.existing, 'ya existe', 'ya existen')} · {fmt(preview.noDesc)} sin descripción · {fmt(preview.errors)} con error</span>
@@ -268,7 +300,9 @@
         Para asegurar que la PBX use los PINes nuevos, aplique los cambios. Esto recarga la PBX y aplica también cualquier otro cambio pendiente del portal.
         <!-- Two-step: the second click of a double-click (detail 2) must never confirm. -->
         <button class="btn small" onclick={(e) => e.detail <= 1 && reloadPBX()} disabled={app.busy}>{confirmReload ? 'Confirmar: recargar la PBX' : 'Aplicar cambios en la PBX'}</button>
-        {#if confirmReload && otherPending}
+        {#if reloading}
+          <span class="tag" role="status">Recargando la PBX… {secs} s</span>
+        {:else if confirmReload && otherPending}
           <span class="warn">Hay otros cambios pendientes en el portal; también se aplicarán.</span>
         {:else if confirmReload && otherPending === false}
           <span class="tag">No hay otros cambios pendientes en el portal.</span>
@@ -339,7 +373,12 @@
   .copy.canary .strip, .copy.canary .lines thead th { background: var(--canary); }
   .folio-no { color: var(--folio); }
   .strip .stamp { padding: 2px 8px 1px; font-size: 13px; }
-  .sum { margin-left: auto; font: 600 12px/1 var(--f-label); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink); }
+  .sum { margin-left: auto; font: 600 12px/1 var(--f-label); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .unit { text-transform: none; } /* "6 s", not "6 S": the unit stays a unit in a caps label */
+  /* Aplicar's progress: spot ink filling along the strip's bottom rule. */
+  .bar { position: absolute; left: 0; bottom: 0; width: 100%; height: 4px; border: 0; appearance: none; background: transparent; }
+  .bar::-webkit-progress-bar { background: transparent; }
+  .bar::-webkit-progress-value { background: var(--ink); transition: width 300ms var(--ease-out); }
   /* Fixed layout: columns never reflow when the filter or the stamps change a row. */
   .lines { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; }
   .c-num { width: 72px; }

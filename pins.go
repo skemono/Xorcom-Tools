@@ -134,7 +134,9 @@ func (s *PinService) Apply(listID int) (PinApplyResult, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), applyTimeout)
 	defer cancel()
-	res := PinApplyResult{Folio: folio, Rows: pbx.ApplyPins(ctx, p, sec, listID, plan.rows)}
+	// The UI draws the progress bar from these counts (it already knows the total from the preview).
+	progress := func(done int) { application.Get().Event.Emit("pines:avance", done) }
+	res := PinApplyResult{Folio: folio, Rows: pbx.ApplyPins(ctx, p, sec, listID, plan.rows, progress)}
 	for _, r := range res.Rows {
 		switch r.Status {
 		case pbx.PinApplied:

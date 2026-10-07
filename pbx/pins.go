@@ -194,10 +194,15 @@ func PlanPins(rows []PinRow, existing map[string]string, includeEmpty bool) []Pi
 	return out
 }
 
+// progressEvery is how often InsertSQL reports how far it got.
+const progressEvery = 100
+
 // InsertSQL is one transaction; NOT EXISTS keeps it add-only even if a PIN appeared after the preview.
+// Every progressEvery inserts, and after the last, it SELECTs the running count for ApplyPins' progress.
 func InsertSQL(listID int, rows []PinRow) string {
 	var b strings.Builder
 	b.WriteString("START TRANSACTION;\n")
+	n := 0
 	for _, r := range rows {
 		if r.Status != PinNew {
 			continue
@@ -208,9 +213,35 @@ func InsertSQL(listID int, rows []PinRow) string {
 		}
 		fmt.Fprintf(&b, "INSERT INTO ombu_pin_list_entries (pin_list_id, password, description) SELECT %d, %s, %s FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM ombu_pin_list_entries WHERE pin_list_id = %d AND password = %s);\n",
 			listID, sqlString(r.PIN), desc, listID, sqlString(r.PIN))
+		if n++; n%progressEvery == 0 {
+			fmt.Fprintf(&b, "SELECT %d AS hecho;\n", n)
+		}
+	}
+	if n%progressEvery != 0 {
+		fmt.Fprintf(&b, "SELECT %d AS hecho;\n", n)
 	}
 	b.WriteString("COMMIT;\n")
 	return b.String()
+}
+
+// progressLines passes each count InsertSQL prints (mysql --batch: a header line, then the number) to fn.
+type progressLines struct {
+	fn   func(done int)
+	rest []byte
+}
+
+func (w *progressLines) Write(p []byte) (int, error) {
+	w.rest = append(w.rest, p...)
+	for {
+		i := bytes.IndexByte(w.rest, '\n')
+		if i < 0 {
+			return len(p), nil
+		}
+		if n, err := strconv.Atoi(string(w.rest[:i])); err == nil {
+			w.fn(n)
+		}
+		w.rest = w.rest[i+1:]
+	}
 }
 
 var sqlEscaper = strings.NewReplacer(`\`, `\\`, `'`, `''`)
@@ -365,9 +396,13 @@ func PinEntries(ctx context.Context, p Profile, sec Secrets, listID int) (map[st
 }
 
 // ApplyPins runs the add-only transaction, then stamps each line from a read-back of the list.
-func ApplyPins(ctx context.Context, p Profile, sec Secrets, listID int, rows []PinRow) []PinRow {
+// progress gets the number of new PINs written so far, while the transaction is still open.
+func ApplyPins(ctx context.Context, p Profile, sec Secrets, listID int, rows []PinRow, progress func(done int)) []PinRow {
 	out := append([]PinRow(nil), rows...)
-	_, err := MySQL(ctx, p, sec, InsertSQL(listID, rows))
+	err := SSHStream(ctx, p, sec.SSH, sec.SSHKey, mysqlCmd, strings.NewReader(InsertSQL(listID, rows)), &progressLines{fn: progress})
+	if err != nil {
+		err = fmt.Errorf("MySQL: %w", err)
+	}
 	var after map[string]string
 	verifyErr := error(nil)
 	if err == nil {

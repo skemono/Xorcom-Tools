@@ -37,11 +37,18 @@ func SSHRun(ctx context.Context, p Profile, password, keyPassphrase, cmd string)
 // SSHExec runs one command with stdin (secrets and data travel there, never in the command line).
 // It returns stdout as is; on failure the error carries the remote stderr.
 func SSHExec(ctx context.Context, p Profile, password, keyPassphrase, cmd string, stdin io.Reader) (string, error) {
+	var out bytes.Buffer
+	err := SSHStream(ctx, p, password, keyPassphrase, cmd, stdin, &out)
+	return out.String(), err
+}
+
+// SSHStream is SSHExec writing stdout to w as it arrives (progress of a long command).
+func SSHStream(ctx context.Context, p Profile, password, keyPassphrase, cmd string, stdin io.Reader, w io.Writer) error {
 	var auth []ssh.AuthMethod
 	if p.SSH.KeyPath != "" {
 		raw, err := os.ReadFile(p.SSH.KeyPath)
 		if err != nil {
-			return "", fmt.Errorf("no se pudo leer la llave SSH: %w", err)
+			return fmt.Errorf("no se pudo leer la llave SSH: %w", err)
 		}
 		var signer ssh.Signer
 		if keyPassphrase != "" {
@@ -50,7 +57,7 @@ func SSHExec(ctx context.Context, p Profile, password, keyPassphrase, cmd string
 			signer, err = ssh.ParsePrivateKey(raw)
 		}
 		if err != nil {
-			return "", fmt.Errorf("llave SSH inválida: %w", err)
+			return fmt.Errorf("llave SSH inválida: %w", err)
 		}
 		auth = append(auth, ssh.PublicKeys(signer))
 	}
@@ -65,7 +72,7 @@ func SSHExec(ctx context.Context, p Profile, password, keyPassphrase, cmd string
 		auth = append(auth, ssh.Password(password), ssh.KeyboardInteractive(answer))
 	}
 	if len(auth) == 0 {
-		return "", errors.New("falta la contraseña o la llave SSH")
+		return errors.New("falta la contraseña o la llave SSH")
 	}
 
 	// Keep the pin verdict even if the ssh package wraps the callback error without %w.
@@ -85,7 +92,7 @@ func SSHExec(ctx context.Context, p Profile, password, keyPassphrase, cmd string
 	var d net.Dialer
 	conn, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
-		return "", err
+		return err
 	}
 	if dl, ok := ctx.Deadline(); ok {
 		conn.SetDeadline(dl)
@@ -94,21 +101,21 @@ func SSHExec(ctx context.Context, p Profile, password, keyPassphrase, cmd string
 	if err != nil {
 		conn.Close()
 		if untrusted != nil {
-			return "", untrusted
+			return untrusted
 		}
-		return "", err
+		return err
 	}
 	client := ssh.NewClient(c, chans, reqs)
 	defer client.Close()
 	sess, err := client.NewSession()
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer sess.Close()
-	var stdout, stderr bytes.Buffer
-	sess.Stdin, sess.Stdout, sess.Stderr = stdin, &stdout, &stderr
+	var stderr bytes.Buffer
+	sess.Stdin, sess.Stdout, sess.Stderr = stdin, w, &stderr
 	if err := sess.Run(cmd); err != nil {
-		return stdout.String(), fmt.Errorf("%w: %s", err, strings.TrimSpace(stderr.String()))
+		return fmt.Errorf("%w: %s", err, strings.TrimSpace(stderr.String()))
 	}
-	return stdout.String(), nil
+	return nil
 }

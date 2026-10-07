@@ -5,8 +5,10 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"io"
 	"net"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -336,6 +338,55 @@ func TestInsertSQLEscapes(t *testing.T) {
 	}
 }
 
+func TestInsertSQLProgressMarkers(t *testing.T) {
+	rows := make([]PinRow, 250)
+	for i := range rows {
+		rows[i] = PinRow{PIN: strconv.Itoa(1000 + i), Status: PinNew}
+	}
+	sql := InsertSQL(7, rows)
+	at := -1
+	for _, n := range []string{"100", "200", "250"} {
+		i := strings.Index(sql, "SELECT "+n+" AS hecho;")
+		if i < at {
+			t.Fatalf("marker %s missing or out of order:\n%s", n, sql)
+		}
+		at = i
+	}
+	if at > strings.Index(sql, "COMMIT;") {
+		t.Fatal("the last marker must come before COMMIT")
+	}
+	if c := strings.Count(InsertSQL(7, rows[:200]), "AS hecho"); c != 2 {
+		t.Fatalf("200 rows need 2 markers, got %d", c)
+	}
+}
+
+func TestApplyPinsReportsProgress(t *testing.T) {
+	marker := regexp.MustCompile(`SELECT (\d+) AS hecho;`)
+	addr, fp := fakeSSH(t, func(cmd string, in []byte) (string, string, int) {
+		sql := string(in)
+		if !strings.HasPrefix(sql, "START TRANSACTION") {
+			return "pin\tdescription\n", "", 0
+		}
+		if !strings.Contains(cmd, "--unbuffered") {
+			return "", "mysql would hold the counts until the end without --unbuffered", 1
+		}
+		var out strings.Builder
+		for _, m := range marker.FindAllStringSubmatch(sql, -1) {
+			out.WriteString("hecho\n" + m[1] + "\n")
+		}
+		return out.String(), "", 0
+	})
+	rows := make([]PinRow, 250)
+	for i := range rows {
+		rows[i] = PinRow{Line: i + 1, PIN: strconv.Itoa(1000 + i), Status: PinNew}
+	}
+	var got []int
+	ApplyPins(context.Background(), sshProfile(t, addr, fp), Secrets{SSH: "pw"}, 7, rows, func(n int) { got = append(got, n) })
+	if fmt.Sprint(got) != "[100 200 250]" {
+		t.Fatalf("progress %v", got)
+	}
+}
+
 func TestPinListsAndEntries(t *testing.T) {
 	addr, fp := fakeSSH(t, func(_ string, in []byte) (string, string, int) {
 		sql := string(in)
@@ -374,7 +425,7 @@ func TestApplyPins(t *testing.T) {
 		{Line: 3, PIN: "6666", Status: PinExists},
 		{Line: 4, PIN: "7777", Status: PinNoDesc},
 	}
-	out := ApplyPins(context.Background(), sshProfile(t, addr, fp), Secrets{SSH: "pw"}, 7, rows)
+	out := ApplyPins(context.Background(), sshProfile(t, addr, fp), Secrets{SSH: "pw"}, 7, rows, func(int) {})
 	if out[0].Status != PinApplied || out[1].Status != PinFailed || out[2].Status != PinSkipped || out[3].Status != PinSkipped {
 		t.Fatalf("statuses %+v", out)
 	}
@@ -388,7 +439,7 @@ func TestApplyPins(t *testing.T) {
 	failAddr, failFP := fakeSSH(t, func(string, []byte) (string, string, int) {
 		return "", "ERROR 1452 (23000) at line 2: Cannot add or update a child row", 1
 	})
-	out = ApplyPins(context.Background(), sshProfile(t, failAddr, failFP), Secrets{SSH: "pw"}, 7, rows)
+	out = ApplyPins(context.Background(), sshProfile(t, failAddr, failFP), Secrets{SSH: "pw"}, 7, rows, func(int) {})
 	if out[0].Status != PinFailed || !strings.Contains(out[0].Error, "1452") || out[2].Status != PinSkipped {
 		t.Fatalf("a failed transaction fails every new row with the reason: %+v", out)
 	}
