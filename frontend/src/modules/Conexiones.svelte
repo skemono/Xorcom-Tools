@@ -140,10 +140,7 @@
 
 <div class="page">
   <div class="title"><span class="code">F-01</span><h1>Conexiones</h1></div>
-  <p class="instr">
-    Registre cada PBX y verifique sus tres canales. Las contraseñas quedan en el Administrador de
-    credenciales de Windows, nunca en archivos.
-  </p>
+  <p class="instr">Registre cada PBX y pruebe sus tres canales; las contraseñas quedan cifradas en Windows.</p>
 
   {#if app.recovered}
     <p class="notice">
@@ -211,7 +208,7 @@
         <span class="lbl">Contraseña</span>
         <input type="password" bind:value={secrets.api} placeholder={has?.api ? 'guardada' : ''} disabled={!form.api.enabled} autocomplete="off" />
       </label>
-      <p class="hint">El portal de CompletePBX usa HTTP sin cifrar: la contraseña viaja en claro por la red.</p>
+      <p class="hint">El portal usa HTTP sin cifrar: la contraseña viaja en claro.</p>
     </fieldset>
 
     <fieldset class="channel" class:off={!form.ssh.enabled}>
@@ -285,21 +282,21 @@
 </div>
 
 <style>
-  .page { padding: 20px 32px 0; }
+  .page { padding: 14px 32px 0; }
   .title { display: flex; align-items: center; gap: 14px; }
   .title .code {
     padding: 5px 8px 4px; border: 2px solid var(--ink);
     font: 700 15px/1 var(--f-label); letter-spacing: 0.06em; color: var(--ink);
   }
   h1 { font: 700 30px/1 var(--f-label); letter-spacing: 0.03em; text-transform: uppercase; color: var(--ink); }
-  .instr { max-width: 72ch; margin: 10px 0 16px; color: var(--ink-2); font-size: 14px; }
+  .instr { max-width: 72ch; margin: 6px 0 12px; color: var(--ink-2); font-size: 14px; }
   .notice { margin-bottom: 24px; padding: 10px 14px; border: 1px solid var(--fail); background: var(--pink); }
   .notice code { font: 12px var(--f-mono); }
-  .section { display: block; margin-bottom: 8px; }
+  .section { display: block; margin-bottom: 6px; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 
   .ledger { width: 100%; margin-bottom: 20px; border-collapse: collapse; border-block: 2px solid var(--ink); }
-  .ledger th { padding: 8px 10px 6px; border-bottom: 1px solid var(--ink); text-align: left; }
+  .ledger th { padding: 6px 10px 5px; border-bottom: 1px solid var(--ink); text-align: left; }
   .ledger td { padding: 9px 10px; border-bottom: 1px solid var(--hair); }
   .ledger tbody tr:last-child td { border-bottom: 0; }
   .ledger tr.editing td { background: var(--tint); }
@@ -308,14 +305,14 @@
   .mark.filled { background: var(--ink); }
   .num { width: 48px; color: var(--ink-2); font-weight: 500; }
   .row-act { width: 80px; text-align: right; }
-  .empty { padding: 18px 10px; color: var(--ink-2); }
+  .empty { padding: 10px; color: var(--ink-2); }
 
   .sheetform {
     display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
     border-top: 2px solid var(--ink); border-left: 1px solid var(--ink);
   }
   .field {
-    display: grid; gap: 6px; min-width: 0; padding: 8px 12px 10px;
+    display: grid; gap: 4px; min-width: 0; padding: 6px 12px 7px;
     border-right: 1px solid var(--ink); border-bottom: 1px solid var(--ink);
   }
   .field.half { grid-column: span 3; }
@@ -338,7 +335,7 @@
   .chan-head {
     float: left; width: 100%;
     display: flex; align-items: center; justify-content: space-between;
-    padding: 8px 12px; border-bottom: 1px solid var(--ink); background: var(--tint);
+    padding: 6px 12px; border-bottom: 1px solid var(--ink); background: var(--tint);
   }
   .chan-head + * { clear: both; }
   .check { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font-size: 13px; }
@@ -348,8 +345,8 @@
   .hint { padding: 8px 12px; color: var(--ink-2); font-size: 12px; line-height: 1.35; }
 
   .outcome {
-    grid-column: span 2; display: grid; align-content: start; justify-items: start; gap: 10px;
-    min-height: 96px; padding: 10px 12px 14px;
+    grid-column: span 2; display: grid; align-content: start; justify-items: start; gap: 8px;
+    min-height: 96px; padding: 8px 12px 14px;
     border-right: 1px solid var(--ink); border-bottom: 2px solid var(--ink);
   }
   .outcome.fail { background: var(--pink); }

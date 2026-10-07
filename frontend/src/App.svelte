@@ -120,10 +120,10 @@
   .pad {
     display: flex; flex-direction: column; min-height: 0;
     padding: 20px 0 16px 20px;
-    border-top: 8px solid #17295a;
+    border-top: 10px solid var(--folio); /* the pad's glued edge, in folio red */
     background: var(--ink); color: var(--paper);
   }
-  .pad::before { content: ''; display: block; height: 2px; margin: -20px 0 18px -20px; background: rgb(251 252 253 / 0.55); }
+  .pad::before { content: ''; display: block; height: 2px; margin: -20px 0 18px -20px; background: var(--paper); }
   .forms li { border-bottom: 1px dashed rgb(255 255 255 / 0.28); }
   .forms li:first-child { border-top: 1px dashed rgb(255 255 255 / 0.28); }
   .pad-name { font: 700 26px/0.95 var(--f-label); letter-spacing: 0.02em; text-transform: uppercase; }
@@ -156,7 +156,7 @@
 
   .sheet { overflow-y: auto; min-width: 0; }
   /* Paper margin under the block: scrolled content fades into paper, never against the rule. */
-  .head-wrap { position: sticky; top: 0; z-index: 2; padding: 24px 32px 12px; background: var(--paper); }
+  .head-wrap { position: sticky; top: 0; z-index: 2; padding: 18px 32px 12px; background: var(--paper); }
   .head {
     display: grid;
     grid-template-columns: minmax(200px, 2fr) minmax(150px, 1.4fr) minmax(110px, 0.8fr) minmax(110px, 0.8fr);
