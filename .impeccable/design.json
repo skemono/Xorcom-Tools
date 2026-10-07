@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-07T00:00:00Z",
+  "title": "Design System: Utilidades XORCOM",
+  "extensions": {
+    "colorMeta": {
+      "spot-ink": { "role": "primary", "displayName": "Spot Ink", "canonical": "#233d7a", "tonalRamp": ["oklch(15% 0.06 265)", "oklch(25% 0.09 265)", "oklch(35% 0.11 265)", "oklch(45% 0.11 265)", "oklch(55% 0.10 265)", "oklch(70% 0.07 265)", "oklch(85% 0.04 265)", "oklch(95% 0.015 265)"] },
+      "spot-ink-deep": { "role": "primary", "displayName": "Deep Spot Ink", "canonical": "#1a2f5c", "tonalRamp": ["oklch(15% 0.06 265)", "oklch(25% 0.08 265)", "oklch(35% 0.09 265)", "oklch(45% 0.09 265)", "oklch(55% 0.08 265)", "oklch(70% 0.06 265)", "oklch(85% 0.03 265)", "oklch(95% 0.01 265)"] },
+      "secondary-print": { "role": "primary", "displayName": "Secondary Print", "canonical": "#4a5f8f", "tonalRamp": ["oklch(15% 0.04 265)", "oklch(25% 0.06 265)", "oklch(35% 0.07 265)", "oklch(45% 0.08 265)", "oklch(55% 0.08 265)", "oklch(70% 0.06 265)", "oklch(85% 0.03 265)", "oklch(95% 0.01 265)"] },
+      "folio-red": { "role": "secondary", "displayName": "Folio Red", "canonical": "#c8202f", "tonalRamp": ["oklch(15% 0.06 25)", "oklch(25% 0.10 25)", "oklch(35% 0.14 25)", "oklch(45% 0.18 25)", "oklch(55% 0.20 25)", "oklch(70% 0.14 25)", "oklch(85% 0.07 25)", "oklch(95% 0.02 25)"] },
+      "sello-violet": { "role": "secondary", "displayName": "Sello Violet", "canonical": "#5b3a9e", "tonalRamp": ["oklch(15% 0.06 295)", "oklch(25% 0.10 295)", "oklch(35% 0.13 295)", "oklch(45% 0.14 295)", "oklch(55% 0.14 295)", "oklch(70% 0.10 295)", "oklch(85% 0.05 295)", "oklch(95% 0.02 295)"] },
+      "canary-copy": { "role": "tertiary", "displayName": "Canary Copy", "canonical": "#f6e27a", "tonalRamp": ["oklch(15% 0.03 98)", "oklch(25% 0.05 98)", "oklch(35% 0.07 98)", "oklch(45% 0.09 98)", "oklch(55% 0.11 98)", "oklch(70% 0.13 98)", "oklch(85% 0.13 98)", "oklch(95% 0.06 98)"] },
+      "pink-copy": { "role": "tertiary", "displayName": "Pink Copy", "canonical": "#f4c6cf", "tonalRamp": ["oklch(15% 0.02 5)", "oklch(25% 0.03 5)", "oklch(35% 0.04 5)", "oklch(45% 0.05 5)", "oklch(55% 0.05 5)", "oklch(70% 0.05 5)", "oklch(85% 0.05 5)", "oklch(95% 0.02 5)"] },
+      "failure-ink": { "role": "tertiary", "displayName": "Failure Ink", "canonical": "#9f1526", "tonalRamp": ["oklch(15% 0.06 22)", "oklch(25% 0.10 22)", "oklch(35% 0.14 22)", "oklch(45% 0.16 22)", "oklch(55% 0.17 22)", "oklch(70% 0.12 22)", "oklch(85% 0.06 22)", "oklch(95% 0.02 22)"] },
+      "white-copy": { "role": "neutral", "displayName": "White Copy", "canonical": "#fbfcfd", "tonalRamp": ["oklch(15% 0.003 250)", "oklch(25% 0.003 250)", "oklch(35% 0.003 250)", "oklch(45% 0.003 250)", "oklch(55% 0.003 250)", "oklch(70% 0.003 250)", "oklch(85% 0.003 250)", "oklch(99% 0.002 250)"] },
+      "data-ink": { "role": "neutral", "displayName": "Data Ink", "canonical": "#16181d", "tonalRamp": ["oklch(15% 0.01 265)", "oklch(20% 0.01 265)", "oklch(35% 0.01 265)", "oklch(45% 0.01 265)", "oklch(55% 0.01 265)", "oklch(70% 0.008 265)", "oklch(85% 0.005 265)", "oklch(95% 0.003 265)"] },
+      "hairline": { "role": "neutral", "displayName": "Hairline", "canonical": "#c9d1e3", "tonalRamp": ["oklch(15% 0.02 265)", "oklch(25% 0.025 265)", "oklch(35% 0.025 265)", "oklch(45% 0.025 265)", "oklch(55% 0.025 265)", "oklch(70% 0.025 265)", "oklch(86% 0.025 265)", "oklch(95% 0.01 265)"] },
+      "ink-wash": { "role": "neutral", "displayName": "Ink Wash", "canonical": "#233d7a0f" },
+      "pad-quiet": { "role": "neutral", "displayName": "Pad Quiet", "canonical": "#c5cde0" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Form title beside the boxed form code; uppercase spot ink." },
+      "headline": { "displayName": "Headline", "purpose": "Pad name block on the ink pad." },
+      "title": { "displayName": "Title", "purpose": "Header block values: PBX, Host, Folio, Fecha." },
+      "body": { "displayName": "Body", "purpose": "Default text, tabular figures." },
+      "field-data": { "displayName": "Field data", "purpose": "Values typed into ruled fields." },
+      "label": { "displayName": "Label", "purpose": "Printed field labels, column and section headings; uppercase spot ink." },
+      "button": { "displayName": "Button", "purpose": "All buttons, uppercase." },
+      "stamp": { "displayName": "Stamp", "purpose": "The sello outcome only." },
+      "mono": { "displayName": "Mono", "purpose": "Fingerprints, hashes, file paths only." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "ease-out", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Stamp landing and busy dim." },
+      { "name": "stamp-in", "value": "260ms ease-out; scale 1.6 to 1, blur 2px to 0, opacity 0 to 1, keeps rotate(var(--r))", "purpose": "The only entrance animation; one per outcome cell." },
+      { "name": "dim", "value": "opacity 0.35, 160ms ease-out, pointer-events none", "purpose": "Everything but the active sheet while a form runs." },
+      { "name": "reduced-motion", "value": "all animation and transition disabled", "purpose": "prefers-reduced-motion: reduce." }
+    ],
+    "breakpoints": [
+      { "name": "window-min", "value": "1024px x 680px" },
+      { "name": "target", "value": "1366px x 768px, no horizontal scroll" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one primary action in the sticky action bar.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Guardar y probar</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border: 2px solid #233d7a; border-radius: 2px; background: #fbfcfd; color: #233d7a; font: 600 13px/1 'Barlow Semi Condensed', 'Arial Narrow', sans-serif; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; } .ds-btn:focus-visible { outline: 2px solid #5b3a9e; outline-offset: 2px; } .ds-btn-primary { background: #233d7a; color: #fbfcfd; } .ds-btn-primary:hover { background: #1a2f5c; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Default outlined button.",
+      "html": "<button class=\"ds-btn2\">Guardar</button>",
+      "css": ".ds-btn2 { display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border: 2px solid #233d7a; border-radius: 2px; background: #fbfcfd; color: #233d7a; font: 600 13px/1 'Barlow Semi Condensed', 'Arial Narrow', sans-serif; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; } .ds-btn2:hover { background: #233d7a0f; } .ds-btn2:focus-visible { outline: 2px solid #5b3a9e; outline-offset: 2px; }"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Destructive action; second press within 4s confirms.",
+      "html": "<button class=\"ds-btn-danger\">Eliminar</button>",
+      "css": ".ds-btn-danger { display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border: 2px solid #c8202f; border-radius: 2px; background: #fbfcfd; color: #c8202f; font: 600 13px/1 'Barlow Semi Condensed', 'Arial Narrow', sans-serif; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; } .ds-btn-danger:hover { background: #233d7a0f; } .ds-btn-danger:focus-visible { outline: 2px solid #5b3a9e; outline-offset: 2px; }"
+    },
+    {
+      "name": "Ruled Field",
+      "kind": "input",
+      "refersTo": "ruled-field",
+      "description": "A cell of the 6-column ruled form: printed label over a borderless input.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-lbl\">Host (nombre o IP)</span><input placeholder=\"10.20.1.5\" /></label>",
+      "css": ".ds-field { display: grid; gap: 4px; width: 280px; padding: 6px 12px 7px; border: 1px solid #233d7a; border-top-width: 2px; background: #fbfcfd; } .ds-lbl { font: 600 11px/1 'Barlow Semi Condensed', 'Arial Narrow', sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: #233d7a; } .ds-field input { padding: 0; border: 0; background: transparent; font: 500 16px/1.3 'Barlow', 'Segoe UI', sans-serif; color: #16181d; caret-color: #5b3a9e; outline-offset: 4px; } .ds-field input::placeholder { color: #4a5f8f; font-style: italic; font-weight: 400; } .ds-field input:focus-visible { outline: 2px solid #5b3a9e; }"
+    },
+    {
+      "name": "Header Block",
+      "kind": "custom",
+      "refersTo": "header-box",
+      "description": "Sticky work-order header: PBX, Host, Folio, Fecha.",
+      "html": "<div class=\"ds-head\"><div class=\"ds-box\"><span class=\"ds-l\">PBX</span><span class=\"ds-v\">Hospital General</span></div><div class=\"ds-box\"><span class=\"ds-l\">Host</span><span class=\"ds-v\">10.20.1.5</span></div><div class=\"ds-box\"><span class=\"ds-l\">Folio</span><span class=\"ds-v ds-folio\">Nº 0004</span></div><div class=\"ds-box\"><span class=\"ds-l\">Fecha</span><span class=\"ds-v\">07/10/2026</span></div></div>",
+      "css": ".ds-head { display: grid; grid-template-columns: 2fr 1.4fr 0.8fr 0.8fr; border: 2px solid #233d7a; background: #fbfcfd; font-variant-numeric: tabular-nums; } .ds-box { display: grid; gap: 6px; padding: 8px 12px 10px; border-left: 1px solid #233d7a; } .ds-box:first-child { border-left: 0; } .ds-l { font: 600 11px/1 'Barlow Semi Condensed', 'Arial Narrow', sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: #233d7a; } .ds-v { font: 500 17px/1.2 'Barlow', 'Segoe UI', sans-serif; color: #16181d; white-space: nowrap; } .ds-folio { color: #c8202f; font-weight: 600; }"
+    },
+    {
+      "name": "Form Pad",
+      "kind": "nav",
+      "refersTo": "form-tab",
+      "description": "Tear-off pad: binding strip, perforated rows, active tab pulled into the sheet.",
+      "html": "<nav class=\"ds-pad\"><p class=\"ds-pad-name\">Utilidades<br>XORCOM</p><ol class=\"ds-forms\"><li><button class=\"ds-tab ds-on\"><span class=\"ds-code\">F-01</span><span>Conexiones</span></button></li><li><button class=\"ds-tab\"><span class=\"ds-code\">F-02</span><span>Extensiones</span></button></li></ol></nav>",
+      "css": ".ds-pad { width: 232px; padding: 20px 0 16px 20px; border-top: 10px solid #c8202f; background: #233d7a; color: #fbfcfd; } .ds-pad-name { margin: 0; font: 700 26px/0.95 'Barlow Semi Condensed', 'Arial Narrow', sans-serif; letter-spacing: 0.02em; text-transform: uppercase; } .ds-forms { margin: 28px 0 0; padding: 0; list-style: none; } .ds-forms li { border-bottom: 1px dashed rgb(255 255 255 / 0.28); } .ds-forms li:first-child { border-top: 1px dashed rgb(255 255 255 / 0.28); } .ds-tab { display: flex; align-items: baseline; gap: 12px; width: 100%; padding: 10px 16px 10px 12px; border: 0; border-radius: 2px 0 0 2px; background: none; color: #fbfcfd; text-align: left; cursor: pointer; font: 500 15px/1.2 'Barlow', 'Segoe UI', sans-serif; } .ds-tab:hover { background: rgb(255 255 255 / 0.08); } .ds-tab:focus-visible { outline: 2px solid #5b3a9e; outline-offset: 2px; } .ds-tab.ds-on { background: #fbfcfd; color: #233d7a; } .ds-code { font: 600 13px/1 'Barlow Semi Condensed', 'Arial Narrow', sans-serif; letter-spacing: 0.06em; }"
+    },
+    {
+      "name": "Stamp (Sello)",
+      "kind": "custom",
+      "refersTo": "stamp-ok",
+      "description": "Outcome stamp; violet success, failure ink on pink copy. Lands once, tilted per cell.",
+      "html": "<div class=\"ds-cells\"><div class=\"ds-cell\"><span class=\"ds-stamp\" style=\"--r:-3deg\">Conectado</span></div><div class=\"ds-cell ds-fail\"><span class=\"ds-stamp ds-bad\" style=\"--r:-1.5deg\">Falló</span></div></div>",
+      "css": ".ds-cells { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 2px solid #233d7a; } .ds-cell { min-height: 96px; padding: 20px 12px; border-right: 1px solid #233d7a; background: #fbfcfd; } .ds-fail { background: #f4c6cf; } .ds-stamp { display: inline-block; padding: 4px 10px 3px; border: 2px solid currentColor; border-radius: 3px; color: #5b3a9e; font: 700 16px/1 'Barlow Semi Condensed', 'Arial Narrow', sans-serif; letter-spacing: 0.14em; text-transform: uppercase; transform: rotate(var(--r, -3deg)); animation: ds-stamp-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both; } .ds-bad { color: #9f1526; } @keyframes ds-stamp-in { from { opacity: 0; filter: blur(2px); transform: rotate(var(--r, -3deg)) scale(1.6); } to { opacity: 1; filter: blur(0); transform: rotate(var(--r, -3deg)) scale(1); } } @media (prefers-reduced-motion: reduce) { .ds-stamp { animation: none; } }"
+    },
+    {
+      "name": "Ledger",
+      "kind": "custom",
+      "description": "Registered-profiles table: 2px ink top/bottom, hairline rows, state squares.",
+      "html": "<table class=\"ds-ledger\"><thead><tr><th></th><th>Nº</th><th>Nombre</th><th>Host</th></tr></thead><tbody><tr class=\"ds-editing\"><td><span class=\"ds-mark ds-filled\"></span></td><td class=\"ds-num\">01</td><td>Hospital General</td><td>10.20.1.5</td></tr><tr><td><span class=\"ds-mark\"></span></td><td class=\"ds-num\">02</td><td>Zona 9</td><td>10.20.4.2</td></tr></tbody></table>",
+      "css": ".ds-ledger { width: 100%; border-collapse: collapse; border-block: 2px solid #233d7a; font: 400 15px/1.4 'Barlow', 'Segoe UI', sans-serif; color: #16181d; font-variant-numeric: tabular-nums; } .ds-ledger th { padding: 6px 10px 5px; border-bottom: 1px solid #233d7a; text-align: left; font: 600 11px/1 'Barlow Semi Condensed', 'Arial Narrow', sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: #233d7a; } .ds-ledger td { padding: 9px 10px; border-bottom: 1px solid #c9d1e3; } .ds-ledger tbody tr:last-child td { border-bottom: 0; } .ds-editing td { background: #233d7a0f; } .ds-mark { display: block; width: 12px; height: 12px; border: 2px solid #233d7a; } .ds-filled { background: #233d7a; } .ds-num { width: 48px; color: #4a5f8f; font-weight: 500; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Carbonless Work Order",
+    "overview": "Every PBX change is a numbered work order from a tear-off pad: printed in one spot ink on white copy, filled in with black data, numbered in red, and stamped in violet as each line lands. The interface is a sheet of ruled boxes, not a dashboard. Labels are what the printer put on the form (condensed caps in spot ink); values are what the technician filled in (Barlow in near-black, tabular figures). The copy color itself carries state: white is the working copy, canary is the preview copy, pink is the failure copy.\n\nDensity is that of a real form: tight ruled cells (12px side padding), 1px internal rules and 2px structural rules, no cards, no floating panels. One sheet is in focus at a time; while a form runs, everything except the active sheet steps back to 35% opacity. Motion exists only for the stamp landing. Light theme only, by decision (office-light scene); all UI copy is Spanish.\n\nThe world explicitly refuses the dark-sidebar SaaS dashboard of KPI cards. The dark ink column on the left is a tear-off pad with a glued binding edge, not a navigation rail.",
+    "keyCharacteristics": [
+      "One spot ink (#233d7a) for every rule, label, and printed element.",
+      "Copy color = state: white working, canary preview, pink failure.",
+      "Ruled grid fields: labels sit inside the cell above the value; borders are the structure.",
+      "Red is reserved for the folio number, the pad's binding edge, and destructive actions.",
+      "Violet is reserved for the sello (stamp), caret, and focus ring: the technician's own mark.",
+      "Flat. No shadows, no texture, no gradients."
+    ],
+    "rules": [
+      { "name": "The Copy Color Rule", "body": "Background color changes only to signal which copy you are looking at: white working, canary preview, pink failure. Never use canary or pink as decoration or as a generic warning tint.", "section": "colors" },
+      { "name": "The Reserved Marks Rule", "body": "Red belongs to the folio, the binding edge, and destruction; violet belongs to the stamp and the technician's cursor/focus. Neither appears as a general accent.", "section": "colors" },
+      { "name": "The Printed vs. Filled Rule", "body": "If the form printer would have put it there, it is condensed caps in spot ink. If the technician or the PBX supplied it, it is Barlow sentence case in data ink. Never set data in caps or labels in sentence case.", "section": "typography" },
+      { "name": "The Tabular Rule", "body": "`font-variant-numeric: tabular-nums` is set on body; ports, ms, folio, and row numbers must line up.", "section": "typography" },
+      { "name": "The Flat Form Rule", "body": "No box-shadow, no texture, no gradient, no blur at rest. A layer is distinguished by a rule or by copy color, never by lift.", "section": "elevation" },
+      { "name": "The Two Weights Rule", "body": "Rules are 1px (internal cell divisions) or 2px (structure: header block frame, ledger top/bottom, form top, outcome bottom, action bar top, boxed form code, buttons, stamps). Light 1px hairline-colored rules are only for ledger rows.", "section": "elevation" }
+    ],
+    "dos": [
+      "**Do** draw structure with spot-ink rules: 2px for frames and section seams, 1px inside.",
+      "**Do** put labels inside ruled cells, condensed caps 11px 0.09em in spot ink, above the filled value.",
+      "**Do** report each outcome with its own stamp at its own tilt; success violet, failure in failure ink on pink copy.",
+      "**Do** keep the header block and action bar sticky and opaque white copy.",
+      "**Do** dim everything but the active sheet to 35% while a form runs.",
+      "**Do** keep text AA on every copy color (failure ink, not folio red, on pink).",
+      "**Do** write all UI copy in Spanish."
+    ],
+    "donts": [
+      "**Don't** build a dark-sidebar SaaS dashboard with KPI cards, metric tiles, or floating cards.",
+      "**Don't** use shadows, paper texture, gradients, handwriting faces, or cream paper.",
+      "**Don't** use canary or pink for anything but the preview and failure copies (and selection highlight).",
+      "**Don't** use folio red or sello violet as general accents.",
+      "**Don't** set JetBrains Mono for anything but fingerprints, hashes, and paths.",
+      "**Don't** animate anything except the stamp landing and the busy dim.",
+      "**Don't** add a dark theme."
+    ]
+  }
+}
