@@ -63,11 +63,14 @@
 
   async function runTest() {
     if (!form.id) return
+    const id = form.id
     app.busy = true
     results = []
     try {
       app.folio = await ProfileService.NextFolio()
-      results = (await ProfileService.Test(form.id)) ?? []
+      const res = (await ProfileService.Test(id)) ?? []
+      if (form.id !== id) return // the sheet changed under the test: never stamp A's results on B
+      results = res
       await tick()
       // Let the technician watch the stamps land without scrolling by hand.
       document.querySelector('.outcome')?.scrollIntoView({ block: 'nearest' })
@@ -166,11 +169,11 @@
             <span class="mark" class:filled={v.profile.id === app.active} title={v.profile.id === app.active ? 'PBX activa' : ''}></span>
           </td>
           <td class="num">{String(i + 1).padStart(2, '0')}</td>
-          <td><button class="link" onclick={() => edit(v.profile.id)}>{v.profile.name}</button></td>
+          <td><button class="link" onclick={() => edit(v.profile.id)} disabled={app.busy}>{v.profile.name}</button></td>
           <td>{v.profile.host}</td>
           <td class="row-act">
             {#if v.profile.id !== app.active}
-              <button class="link" onclick={() => setActive(v.profile.id)}>Usar</button>
+              <button class="link" onclick={() => setActive(v.profile.id)} disabled={app.busy}>Usar</button>
             {/if}
           </td>
         </tr>

@@ -91,7 +91,7 @@
           <select
             value={app.active}
             onchange={(e) => setActive(e.currentTarget.value)}
-            disabled={app.profiles.length === 0}
+            disabled={app.busy || app.profiles.length === 0}
           >
             {#if app.profiles.length === 0}<option value="">Sin perfiles</option>{/if}
             {#each app.profiles as v (v.profile.id)}
