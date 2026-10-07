@@ -266,7 +266,8 @@
     {#if result && NEEDS_PORTAL_APPLY && result.applied > 0}
       <p class="notice ink">
         Para asegurar que la PBX use los PINes nuevos, aplique los cambios. Esto recarga la PBX y aplica también cualquier otro cambio pendiente del portal.
-        <button class="btn small" onclick={reloadPBX} disabled={app.busy}>{confirmReload ? 'Confirmar: recargar la PBX' : 'Aplicar cambios en la PBX'}</button>
+        <!-- Two-step: the second click of a double-click (detail 2) must never confirm. -->
+        <button class="btn small" onclick={(e) => e.detail <= 1 && reloadPBX()} disabled={app.busy}>{confirmReload ? 'Confirmar: recargar la PBX' : 'Aplicar cambios en la PBX'}</button>
         {#if confirmReload && otherPending}
           <span class="warn">Hay otros cambios pendientes en el portal; también se aplicarán.</span>
         {:else if confirmReload && otherPending === false}

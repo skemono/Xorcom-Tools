@@ -276,7 +276,8 @@
     <button class="btn" type="button" onclick={save} disabled={app.busy}>Guardar</button>
     {#if form.id}
       <button class="btn" type="button" onclick={fresh} disabled={app.busy}>Nuevo perfil</button>
-      <button class="btn danger" type="button" onclick={remove} disabled={app.busy}>
+      <!-- Two-step: the second click of a double-click (detail 2) must never confirm. -->
+      <button class="btn danger" type="button" onclick={(e) => e.detail <= 1 && remove()} disabled={app.busy}>
         {confirmDelete ? 'Confirmar: eliminar' : 'Eliminar'}
       </button>
     {/if}
