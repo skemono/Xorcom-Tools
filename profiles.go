@@ -99,6 +99,24 @@ func (s *ProfileService) NextFolio() (int, error) {
 	return s.store.NextFolio()
 }
 
+// active returns the active profile and its secrets for tools that act on the PBX over SSH.
+func (s *ProfileService) active() (pbx.Profile, pbx.Secrets, error) {
+	s.mu.Lock()
+	p, ok := s.store.Get(s.store.ActiveID())
+	s.mu.Unlock()
+	if !ok {
+		return pbx.Profile{}, pbx.Secrets{}, errors.New("no hay una PBX activa: elija una en el encabezado")
+	}
+	if !p.SSH.Enabled {
+		return pbx.Profile{}, pbx.Secrets{}, errors.New("la PBX activa no tiene el canal SSH habilitado (F-01)")
+	}
+	sec, err := pbx.LoadSecrets(p.ID)
+	if err != nil {
+		return pbx.Profile{}, pbx.Secrets{}, fmt.Errorf("no se pudieron leer las contraseñas: %w", err)
+	}
+	return p, sec, nil
+}
+
 // Test checks the saved profile's enabled channels (not unsaved form edits).
 func (s *ProfileService) Test(id string) ([]pbx.ChannelResult, error) {
 	s.mu.Lock()

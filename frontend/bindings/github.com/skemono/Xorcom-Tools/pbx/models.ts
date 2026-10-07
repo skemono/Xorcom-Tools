@@ -15,6 +15,28 @@ export interface APIConfig {
 }
 
 /**
+ * CSVInfo is what F-02 detected about the file, shown to the user.
+ */
+export interface CSVInfo {
+    /**
+     * ";", "," or "tab"
+     */
+    "separator": string;
+
+    /**
+     * "UTF-8" or "Windows-1252"
+     */
+    "encoding": string;
+    "header": boolean;
+
+    /**
+     * 2 (PIN, descripción) or 3 (pin_list_id, PIN, descripción)
+     */
+    "columns": number;
+    "rows": number;
+}
+
+/**
  * ChannelResult is one channel's outcome in a connection test.
  */
 export interface ChannelResult {
@@ -28,6 +50,38 @@ export interface ChannelResult {
     "millis": number;
     "fingerprint": string;
     "fingerprintChanged": boolean;
+}
+
+/**
+ * PinList is a row of ombu_pin_lists with its current entry count.
+ */
+export interface PinList {
+    "id": number;
+    "description": string;
+    "entries": number;
+}
+
+/**
+ * PinRow is one CSV line on its way to ombu_pin_list_entries.
+ */
+export interface PinRow {
+    /**
+     * line number in the file, as the user sees it
+     */
+    "line": number;
+    "pin": string;
+
+    /**
+     * after filterDescription
+     */
+    "description": string;
+
+    /**
+     * ñ, accents or typographic characters were replaced
+     */
+    "filtered": boolean;
+    "status": string;
+    "error": string;
 }
 
 export interface Profile {

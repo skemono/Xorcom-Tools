@@ -4,7 +4,10 @@
 export type {
     AMIConfig,
     APIConfig,
+    CSVInfo,
     ChannelResult,
+    PinList,
+    PinRow,
     Profile,
     SSHConfig,
     Secrets

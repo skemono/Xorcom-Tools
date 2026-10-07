@@ -5,6 +5,24 @@
 // @ts-ignore: Unused imports
 import * as pbx$0 from "./pbx/models.js";
 
+export interface PinApplyResult {
+    "folio": number;
+    "rows": pbx$0.PinRow[] | null;
+    "applied": number;
+    "skipped": number;
+    "failed": number;
+}
+
+export interface PinPreview {
+    "listID": number;
+    "info": pbx$0.CSVInfo;
+    "rows": pbx$0.PinRow[] | null;
+    "new": number;
+    "existing": number;
+    "noDesc": number;
+    "errors": number;
+}
+
 export interface ProfileView {
     "profile": pbx$0.Profile;
     "has": SecretFlags;
