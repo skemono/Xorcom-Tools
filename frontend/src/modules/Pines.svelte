@@ -179,7 +179,8 @@
     <p class="hint">
       {fileName} · Separador {sepName(preview.info.separator)} · {preview.info.encoding} · {preview.info.header ? 'con encabezado' : 'sin encabezado'} · {count(preview.info.rows, 'fila', 'filas')}
     </p>
-  {:else}
+  {/if}
+  {#if !preview || preview.errors > 0}
     <div class="format">
       <span class="lbl">Formato</span>
       <pre class="sample">PIN;Descripcion
@@ -223,7 +224,7 @@
         <tbody>
           {#each shown as r (r.line)}
             <tr class:bad={r.status === 'error' || r.status === 'fallo'}>
-              <td class="num">{String(r.line).padStart(lineWidth, '0')}</td>
+              <td class="num">{String(r.line).padStart(Math.max(2, lineWidth), '0')}</td>
               <td class="cell-state">
                 <span class="mark" class:filled={r.status === 'aplicado'} class:struck={r.status === 'error' || r.status === 'fallo'}></span>
               </td>
@@ -300,13 +301,14 @@
   .check { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font-size: 13px; }
   .check input { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); }
 
-  .copy { border: 2px solid var(--ink); background: var(--paper); }
+  /* The strip draws the copy's top rule, so the rule travels with it when it pins (seam rule). */
+  .copy { border: 2px solid var(--ink); border-top: 0; background: var(--paper); }
   .copy.canary { background: var(--canary); }
   /* Strip and column heads stay under the header block while thousands of lines scroll. */
   .strip {
     position: sticky; top: var(--head-h, 0px); z-index: 1;
     display: flex; justify-content: space-between; align-items: center; gap: 12px;
-    height: 36px; padding: 0 12px; border-bottom: 2px solid var(--ink); background: var(--paper);
+    height: 38px; padding: 0 12px; border-block: 2px solid var(--ink); background: var(--paper);
   }
   .copy.canary .strip, .copy.canary .lines thead th { background: var(--canary); }
   .folio-no { color: var(--folio); }
@@ -316,10 +318,10 @@
   .lines { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; }
   .c-num { width: 72px; }
   .c-state { width: 34px; }
-  .c-pin { width: 150px; }
-  .c-res { width: 36%; }
+  .c-pin { width: 130px; }
+  .c-res { width: 42%; }
   .lines th {
-    position: sticky; top: calc(var(--head-h, 0px) + 36px); z-index: 1;
+    position: sticky; top: calc(var(--head-h, 0px) + 38px); z-index: 1;
     padding: 6px 10px 5px; border-bottom: 1px solid var(--ink); text-align: left; background: var(--paper);
   }
   .lines td { padding: 6px 10px; border-bottom: 1px solid rgb(35 61 122 / 0.22); vertical-align: middle; overflow-wrap: anywhere; }
@@ -329,7 +331,7 @@
   .num { color: var(--ink-2); font-weight: 500; }
   .pin { font-weight: 600; letter-spacing: 0.02em; }
   .tag { color: var(--ink-2); font-size: 12px; }
-  .why { color: var(--fail); font-size: 13px; }
+  .why { color: var(--fail); font-size: 13px; text-wrap: pretty; }
   .quiet { font: 600 12px/1 var(--f-label); letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-2); }
 
   .actions {
