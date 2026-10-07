@@ -27,6 +27,8 @@ Out of scope until asked: creating lists, editing/deleting PINs, several PBXs pe
 | `local_infile` | ON on the lab, but F-02 does not depend on it |
 | Portal rules (`www/modules/pin/pin.json`, `i18n/es_ES/pin.txt`) | a PIN is "números y el símbolo `*`"; duplicates rejected ("PIN repetidos"); a list cannot be saved empty ("Se requiere al menos un PIN"); the portal edits a list as a PIN-per-line textarea with no descriptions; lists are referenced by **outbound routes** (`outbound_routes.pin_list_id`) |
 | Call path | The generated dialplan reads config from AstDB (`${DB(...)}`), which CompletePBX fills from MySQL. The code that renders PIN lists is not plain text on the box, and the lab had no PIN list or trunk group yet, so whether SQL-inserted PINs work **without pressing Apply in the portal** is still open (section 8). |
+| Portal Apply (seen by the user in the browser) | `GET /apply-changes` on the portal (needs a logged-in session) answers `{"state":"success","action":"sysreload-applied","notification":{"text":"The system has been reloaded with all outstanding changes"}}`. It reloads the system with **all** outstanding portal changes, not only F-02's. |
+| Real test file (local, git-ignored `docs/test_data/PinList.csv`) | UTF-8 with BOM, `,`, CRLF, header `Pin,Descripcion`; 5 772 PINs of 6 digits; 6 trailing blank rows; 1 516 descriptions with accents/ñ; 26 characters with grave accents (`à è ì ò Ì`); 4 duplicate PINs (lines 12/13, 730/731, 3627/4434, 3601/5120); no row without description. Contains personal data: never committed. |
 
 The F-01 connection test also passed against this box: portal login (API) and SSH both stamped CONECTADO, and the real Credential Manager path stored and deleted secrets correctly.
 
@@ -34,8 +36,10 @@ The F-01 connection test also passed against this box: portal login (API) and SS
 
 1. **Lista.** F-02 reads `ombu_pin_lists` (with an entry count per list) from the active PBX; the user picks one. No lists → the sheet says to create one in the portal first.
 2. **Archivo.** The user picks a CSV (native file dialog). F-02 shows what it detected: separator, encoding, header row yes/no, row count.
-3. **Vista previa (canary copy).** "COPIA — VISTA PREVIA" strip; one numbered line per CSV row: Nº, state cell, PIN, Descripción, Resultado previsto (`Nuevo`, `Ya existe: se omite`, `Error: <motivo>`). Summary: "48 nuevos · 2 ya existen · 0 con error".
+3. **Vista previa (canary copy).** "COPIA — VISTA PREVIA" strip; one numbered line per CSV row: Nº, state cell, PIN, Descripción, Resultado previsto (`Nuevo`, `Ya existe: se omite`, `Sin descripción: se omite`, `Error: <motivo>`). Summary: "5 768 nuevos · 2 ya existen · 0 sin descripción · 8 con error".
    - **Any error row blocks Aplicar** ("Corrija el archivo y vuelva a cargarlo"). Zero `Nuevo` lines also disables it.
+   - **Toggle "Incluir PINes sin descripción"** (off by default): off → rows with an empty description are skipped and counted; on → they are loaded with no description (`NULL`). Changing it recomputes the preview.
+   - **Toggle "Solo filas con observaciones"**: shows only rows that are not plain `Nuevo` (errors, already existing, no description), so 8 problem rows are findable among 5 000; it switches on by itself when the file has errors.
 4. **Aplicar.** Issues a folio, runs the insert (section 5), then **reads the list back** and stamps each line from the read-back, not from the request: violet `APLICADO`, quiet `OMITIDO` (already existed), red `FALLÓ`. The sheet turns from canary to the white working copy; failures turn pink.
 
 Changing the active PBX or the list discards the preview.
@@ -75,14 +79,15 @@ Columns are positional; header text is not interpreted. The sheet shows this for
 - **Separator:** the first non-empty line decides: `;`, `,` or tab, whichever occurs most outside quotes. Parsed with `encoding/csv` (quoted fields with commas are fine). Blank lines are skipped.
 - **Columns:** 2 (`PIN, descripción`) or 3 as in the guide (`pin_list_id, PIN, descripción`). Any other count is a file-level error. With 3 columns, a `pin_list_id` different from the chosen list is a row error.
 - **Header:** the first row is a header when its PIN cell contains no digit at all ("PIN", "password"); a first row like "12a4" is data and shows as an error, never silently skipped. Trailing empty cells (Excel's "4321;Juan;") are ignored when counting columns.
-- **Size guard:** files over 1 MB or 10 000 rows are refused (a hospital list is hundreds).
+- **Size guard:** files over 1 MB or 10 000 rows are refused (the real IGSS test list is 5 772 rows, 198 KB).
 
 ## 5. Validation (per row, all reported, nothing silently dropped)
 
 | Field | Rule |
 |---|---|
 | PIN | required; digits `0-9` and `*` only (the portal's own rule); 1–255 characters after trimming spaces |
-| Descripción | optional (stored as `NULL` when empty); **ñ and accents are filtered**: `á é í ó ú ü` → `a e i o u u`, `ñ` → `n` (and uppercase), so "José Peña" is stored as "Jose Pena"; the preview marks such lines "(sin tildes)". After filtering only printable ASCII is allowed: any other character is a row error naming it. ≤ 255 characters |
+| Descripción | **ñ and every accent are filtered**: any accented Latin vowel (acute, grave, circumflex, tilde, diaeresis, ring: `á à â ã ä å`…) becomes its plain letter, `ñ` → `n`, `ç` → `c`, `ý ÿ` → `y` (and uppercase), so "José Peña" and "Marìa" are stored as "Jose Pena" and "Maria"; Excel's curly quotes, dashes, ellipsis and non-breaking spaces become plain ASCII; the preview marks such lines "(sin tildes)". After filtering only printable ASCII is allowed: any other character is a row error naming it. ≤ 255 characters |
+| Empty description | not an error: `Sin descripción: se omite` unless the toggle "Incluir PINes sin descripción" is on, then loaded as `NULL` |
 | Duplicates in file | the same PIN on two rows → both rows are errors |
 | Against the list | a PIN already in the chosen list → `Ya existe: se omite` (not an error) |
 
@@ -93,7 +98,7 @@ Over the profile's SSH connection, F-02 runs `mysql --batch --default-character-
 ```sql
 START TRANSACTION;
 INSERT INTO ombu_pin_list_entries (pin_list_id, password, description)
-  SELECT 7, '4321', 'Dr. José Pérez' FROM DUAL
+  SELECT 7, '4321', 'Dr. Jose Perez' FROM DUAL
   WHERE NOT EXISTS (SELECT 1 FROM ombu_pin_list_entries WHERE pin_list_id = 7 AND password = '4321');
 -- … one statement per Nuevo line …
 COMMIT;
@@ -103,6 +108,7 @@ COMMIT;
 - `WHERE NOT EXISTS` keeps the add-only promise even if someone added the same PIN between preview and Aplicar.
 - Any SQL error aborts the transaction (InnoDB rollback); every line then stamps `FALLÓ` with the MySQL message.
 - Reads (`SELECT … FROM ombu_pin_lists`, entries of one list) use the same channel; mysql `--batch` output is tab-separated with `\t \n \\ \0` escapes, which the parser undoes.
+- Timeouts: reads 60 s; Aplicar 5 min (the 5 772-row test file runs one NOT EXISTS lookup per row).
 
 ## 7. Code
 
@@ -110,8 +116,9 @@ COMMIT;
 |---|---|
 | `pbx/ssh.go` | add `SSHExec(ctx, p, password, keyPassphrase, cmd string, stdin io.Reader) (stdout string, err error)`; stderr goes into the error. `SSHRun` stays for F-01. |
 | `pbx/mysql.go` | `MySQL(ctx, p, sec, sql) ([]map[string]string, error)`: runs the batch client over `SSHExec`, parses and unescapes TSV with header |
-| `pbx/pins.go` | pure: `DecodeCSV`, `ParsePinRows`, `ValidatePins`, `PlanPins(rows, existing)`, `InsertSQL(listID, lines)`; plus `PinLists`, `PinEntries` reading through `MySQL` |
-| `pins.go` | bound `PinService`: `Lists()`, `PickCSV()` (Wails open-file dialog, `*.csv`), `Preview(listID, path)`, `Apply()` applying exactly the last preview (kept in Go memory, tied to profile id + list id) |
+| `pbx/pins.go` | pure: CSV decode/parse/validate, `PlanPins(rows, existing, includeEmpty)`, `InsertSQL(listID, lines)`; plus `PinLists`, `PinEntries`, `ApplyPins` through `MySQL` |
+| `pbx/api.go` | shared portal login; `PortalApplyChanges` (`GET /apply-changes`) |
+| `pins.go` | bound `PinService`: `Lists()`, `PickCSV()` (Wails open-file dialog, `*.csv`), `Preview(listID, path, includeEmpty)`, `Apply(listID)` applying exactly the last preview (kept in Go memory, tied to profile id + list id), `ApplyPortal()` |
 | `profiles.go` | small unexported helper giving `PinService` the active profile and its secrets |
 | `frontend/src/modules/Pines.svelte` | the F-02 form; registry line `{ code: 'F-02', id: 'pines', label: 'PINes masivos' }` |
 
@@ -120,7 +127,7 @@ UI extends the established Boleta world per DESIGN.md (no new identity): first b
 ## 8. Open decision resolved by plan step 1: is a portal Apply needed?
 
 Procedure on the lab box (writes only with the user's go-ahead):
-1. The user creates a PIN list in the portal (the portal requires at least one PIN, e.g. a placeholder) and assigns it to an outbound route, then presses Apply (baseline).
+1. The user created the PIN list `PruebaIGSS` in the portal (the portal requires at least one PIN); it gets assigned to an outbound route and the portal Apply is pressed (baseline).
 2. F-02's SQL path inserts one test PIN.
 3. Read-only checks over SSH: does the PIN appear in AstDB (`asterisk -rx "database show"`) or the generated `/etc/asterisk/ombutel/*.conf`, before and after the user presses Apply again? A test call with the PIN settles any doubt.
 4. Portal re-save check: the user opens the list in the portal and saves it unchanged; F-02 re-reads it to see whether entry descriptions survive (the portal edits PINs as a textarea without descriptions). If they are lost, the sheet warns "No edite esta lista en el portal: perdería las descripciones".
@@ -128,7 +135,7 @@ Procedure on the lab box (writes only with the user's go-ahead):
 
 Outcomes:
 - **Live** (works without Apply): nothing more to build.
-- **Apply needed:** after a successful Aplicar, F-02 shows a canary notice "Falta aplicar cambios en el portal para que los PINes funcionen" with a button that opens the portal (`APIBase()` URL) in the browser. Automating the portal's apply call is a later step, once its endpoint is known.
+- **Apply needed:** after a successful Aplicar, F-02 shows a canary notice "Falta aplicar cambios en la PBX para que los PINes funcionen" and a second, separate button **Aplicar cambios en la PBX**. It logs in to the portal with the profile's API credentials (F-01) and calls `GET /apply-changes`; success shows the portal's own notification text. Because that endpoint reloads the system with **all** outstanding portal changes, the button is two-step ("Confirmar: recargar la PBX") and its note says so. No API password stored → the button explains to add it in F-01.
 
 ## 9. Error handling
 
@@ -140,6 +147,6 @@ Outcomes:
 
 ## 10. Testing
 
-- Unit (`pbx`): CSV decoding (UTF-8 with/without BOM, Windows-1252 "José", `;`/`,`/tab, quoted commas, header/no header, 2 and 3 columns, blank lines), validation table (PIN with `*`, "José Peña" → "Jose Pena", "Çelik" → error), duplicate detection, planning against existing entries, SQL builder (escaping of `'` and `\`, NOT EXISTS guard), TSV parsing/unescaping.
+- Unit (`pbx`): CSV decoding (UTF-8 with/without BOM, Windows-1252 "José", `;`/`,`/tab, quoted commas, header/no header, 2 and 3 columns, blank lines), validation table (PIN with `*`, "José Peña" → "Jose Pena", "Marìa" → "Maria", "Çelik" → "Celik", "Straße" → error, empty description skipped unless included), duplicate detection, planning against existing entries, SQL builder (escaping of `'` and `\`, NOT EXISTS guard), TSV parsing/unescaping.
 - Scripted UI check (headless Edge, server mode): preview renders, error rows block Aplicar, list/PBX change discards the preview.
-- Lab box: section 8 procedure, then one real Aplicar of a small CSV with the user's go-ahead, read-back verified in the portal, test entries removed.
+- Lab box: section 8 procedure (list `PruebaIGSS`, created by the user), then one real Aplicar of a small synthetic CSV with the user's go-ahead, read-back verified in the portal, test entries removed.
