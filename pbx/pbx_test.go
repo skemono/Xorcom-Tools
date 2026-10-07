@@ -7,12 +7,14 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -307,5 +309,46 @@ func TestHostKeyCheck(t *testing.T) {
 	}
 	if err := HostKeyCheck(fp)("pbx:22", nil, key); err != nil {
 		t.Fatalf("pinned key must pass: %v", err)
+	}
+}
+
+func TestDescribe(t *testing.T) {
+	cases := []struct {
+		err  error
+		want string
+	}{
+		{context.DeadlineExceeded, "sin respuesta en 10 s"},
+		{fmt.Errorf("dial tcp: %w", &net.DNSError{Name: "pbx.local", Err: "no such host"}), "no se encontró el host pbx.local"},
+		{errors.New("connectex: No connection could be made because the target machine actively refused it."), "conexión rechazada"},
+		{&UntrustedError{Fingerprint: "x", Changed: true}, "la huella cambió"},
+		{errors.New("ssh: handshake failed: ssh: unable to authenticate"), "usuario o contraseña SSH incorrectos"},
+	}
+	for _, c := range cases {
+		if got := describe(c.err); !strings.Contains(got, c.want) {
+			t.Errorf("describe(%v) = %q, want it to contain %q", c.err, got, c.want)
+		}
+	}
+}
+
+func TestCheckSkipsDisabledAndIsolatesFailures(t *testing.T) {
+	host, port, _ := net.SplitHostPort(fakeAMI(t, "Asterisk Call Manager/7.0.3"))
+	amiPort, _ := strconv.Atoi(port)
+	p := Profile{
+		Host: host,
+		API:  APIConfig{Enabled: true, BaseURL: "http://127.0.0.1:1"}, // closed port: fails
+		AMI:  AMIConfig{Enabled: true, Port: amiPort, User: "admin"},
+	}
+	res := Check(context.Background(), p, Secrets{AMI: "ok"})
+	if len(res) != 3 || res[0].Channel != "api" || res[1].Channel != "ssh" || res[2].Channel != "ami" {
+		t.Fatalf("want api, ssh, ami in order, got %+v", res)
+	}
+	if res[0].OK || res[0].Message == "" {
+		t.Fatalf("api on a closed port must fail with a message: %+v", res[0])
+	}
+	if !res[1].Skipped || res[1].OK {
+		t.Fatalf("disabled ssh must be skipped: %+v", res[1])
+	}
+	if !res[2].OK || !strings.Contains(res[2].Message, "Asterisk Call Manager") {
+		t.Fatalf("ami must succeed despite the api failure: %+v", res[2])
 	}
 }
