@@ -8,7 +8,7 @@ Process source: `docs/tool_processes/GuiaPinMasivo.pdf` (manual SQL method).
 Replace the guide's manual steps 2–4 (find `pin_list_id` over SSH, build a CSV, upload it and run `LOAD DATA LOCAL INFILE`) with one form: pick the PIN list on the active PBX, load a CSV, review a canary preview, press **Aplicar**, read a stamp per line.
 
 Decided with the user:
-- Source: a CSV file (Excel "Guardar como CSV"). No `.xlsx`.
+- Source: a CSV file (Excel "Guardar como CSV"). No `.xlsx`. Format in section 4.
 - The PIN list itself is still created by hand in the portal (guide step 1); F-02 only picks an existing list.
 - Write mode: **add only**. A PIN already in the list is skipped and reported; existing entries are never changed or deleted.
 - Target: the active PBX profile only, one per run.
@@ -25,6 +25,7 @@ Out of scope until asked: creating lists, editing/deleting PINs, several PBXs pe
 | Duplicates | **No unique key on (pin_list_id, password)**: the DB accepts duplicate PINs, so F-02 must prevent them |
 | Engine / charset | InnoDB (transactions roll back), `utf8mb3` (no 4-byte characters such as emoji) |
 | `local_infile` | ON on the lab, but F-02 does not depend on it |
+| Portal rules (`www/modules/pin/pin.json`, `i18n/es_ES/pin.txt`) | a PIN is "números y el símbolo `*`"; duplicates rejected ("PIN repetidos"); a list cannot be saved empty ("Se requiere al menos un PIN"); the portal edits a list as a PIN-per-line textarea with no descriptions; lists are referenced by **outbound routes** (`outbound_routes.pin_list_id`) |
 | Call path | The generated dialplan reads config from AstDB (`${DB(...)}`), which CompletePBX fills from MySQL. The code that renders PIN lists is not plain text on the box, and the lab had no PIN list or trunk group yet, so whether SQL-inserted PINs work **without pressing Apply in the portal** is still open (section 8). |
 
 The F-01 connection test also passed against this box: portal login (API) and SSH both stamped CONECTADO, and the real Credential Manager path stored and deleted secrets correctly.
@@ -41,6 +42,35 @@ Changing the active PBX or the list discards the preview.
 
 ## 4. CSV rules
 
+### Format and mapping
+
+Two columns, one PIN per row; a header row is optional. Either separator works (Excel in Spanish saves `;`):
+
+```
+PIN;Descripcion
+4321;Dr. Jose Perez
+6326;Enfermeria 3er nivel
+5*55;Turno nocturno
+```
+
+The guide's three-column file is also accepted as is:
+
+```
+pin_list_id,password,description
+2,4321,General Manager
+```
+
+| CSV column (2-col / 3-col) | Goes to `ombu_pin_list_entries` | Notes |
+|---|---|---|
+| — / 1st `pin_list_id` | `pin_list_id` | Always the list picked in F-02; in a 3-column file this column must equal it |
+| 1st / 2nd `PIN` | `password` | digits and `*` only |
+| 2nd / 3rd `Descripción` | `description` | filtered (section 5); empty → `NULL` |
+| — | `pin_list_entry_id` | auto-increment, never from the file |
+
+Columns are positional; header text is not interpreted. The sheet shows this format next to the file picker.
+
+### Reading the file
+
 - **Encoding:** UTF-8 BOM → UTF-8 (BOM stripped); valid UTF-8 → as is; otherwise Windows-1252 (Excel's "CSV" on Spanish Windows), so "José Pérez" survives.
 - **Separator:** the first non-empty line decides: `;`, `,` or tab, whichever occurs most outside quotes. Parsed with `encoding/csv` (quoted fields with commas are fine). Blank lines are skipped.
 - **Columns:** 2 (`PIN, descripción`) or 3 as in the guide (`pin_list_id, PIN, descripción`). Any other count is a file-level error. With 3 columns, a `pin_list_id` different from the chosen list is a row error.
@@ -51,8 +81,8 @@ Changing the active PBX or the list discards the preview.
 
 | Field | Rule |
 |---|---|
-| PIN | required; digits `0-9` only; 1–255 characters after trimming spaces |
-| Descripción | optional (stored as `NULL` when empty); ≤ 255 characters; no control characters or line breaks; no 4-byte characters (`utf8mb3`) |
+| PIN | required; digits `0-9` and `*` only (the portal's own rule); 1–255 characters after trimming spaces |
+| Descripción | optional (stored as `NULL` when empty); **ñ and accents are filtered**: `á é í ó ú ü` → `a e i o u u`, `ñ` → `n` (and uppercase), so "José Peña" is stored as "Jose Pena"; the preview marks such lines "(sin tildes)". After filtering only printable ASCII is allowed: any other character is a row error naming it. ≤ 255 characters |
 | Duplicates in file | the same PIN on two rows → both rows are errors |
 | Against the list | a PIN already in the chosen list → `Ya existe: se omite` (not an error) |
 
@@ -69,7 +99,7 @@ INSERT INTO ombu_pin_list_entries (pin_list_id, password, description)
 COMMIT;
 ```
 
-- String literals escape `\` → `\\` and `'` → `''`; control characters never reach SQL (validation rejects them); ids and PINs are digits only.
+- String literals escape `\` → `\\` and `'` → `''`; descriptions are printable ASCII after filtering; ids are digits and PINs digits plus `*`.
 - `WHERE NOT EXISTS` keeps the add-only promise even if someone added the same PIN between preview and Aplicar.
 - Any SQL error aborts the transaction (InnoDB rollback); every line then stamps `FALLÓ` with the MySQL message.
 - Reads (`SELECT … FROM ombu_pin_lists`, entries of one list) use the same channel; mysql `--batch` output is tab-separated with `\t \n \\ \0` escapes, which the parser undoes.
@@ -90,10 +120,11 @@ UI extends the established Boleta world per DESIGN.md (no new identity): first b
 ## 8. Open decision resolved by plan step 1: is a portal Apply needed?
 
 Procedure on the lab box (writes only with the user's go-ahead):
-1. The user creates a PIN list in the portal and assigns it to a trunk group, then presses Apply (baseline).
+1. The user creates a PIN list in the portal (the portal requires at least one PIN, e.g. a placeholder) and assigns it to an outbound route, then presses Apply (baseline).
 2. F-02's SQL path inserts one test PIN.
 3. Read-only checks over SSH: does the PIN appear in AstDB (`asterisk -rx "database show"`) or the generated `/etc/asterisk/ombutel/*.conf`, before and after the user presses Apply again? A test call with the PIN settles any doubt.
-4. The test PIN is deleted afterwards.
+4. Portal re-save check: the user opens the list in the portal and saves it unchanged; F-02 re-reads it to see whether entry descriptions survive (the portal edits PINs as a textarea without descriptions). If they are lost, the sheet warns "No edite esta lista en el portal: perdería las descripciones".
+5. The test PIN is deleted afterwards.
 
 Outcomes:
 - **Live** (works without Apply): nothing more to build.
@@ -109,6 +140,6 @@ Outcomes:
 
 ## 10. Testing
 
-- Unit (`pbx`): CSV decoding (UTF-8 with/without BOM, Windows-1252 "José", `;`/`,`/tab, quoted commas, header/no header, 2 and 3 columns, blank lines), validation table, duplicate detection, planning against existing entries, SQL builder (escaping of `'` and `\`, NOT EXISTS guard), TSV parsing/unescaping.
+- Unit (`pbx`): CSV decoding (UTF-8 with/without BOM, Windows-1252 "José", `;`/`,`/tab, quoted commas, header/no header, 2 and 3 columns, blank lines), validation table (PIN with `*`, "José Peña" → "Jose Pena", "Çelik" → error), duplicate detection, planning against existing entries, SQL builder (escaping of `'` and `\`, NOT EXISTS guard), TSV parsing/unescaping.
 - Scripted UI check (headless Edge, server mode): preview renders, error rows block Aplicar, list/PBX change discards the preview.
 - Lab box: section 8 procedure, then one real Aplicar of a small CSV with the user's go-ahead, read-back verified in the portal, test entries removed.
