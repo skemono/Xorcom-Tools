@@ -1,8 +1,14 @@
 package pbx
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/zalando/go-keyring"
@@ -138,5 +144,80 @@ func TestSecretsKeepOnEmpty(t *testing.T) {
 	}
 	if got, _ := LoadSecrets("p1"); got != (Secrets{}) {
 		t.Fatalf("delete left secrets behind: %+v", got)
+	}
+}
+
+func TestPinnedTLS(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	defer srv.Close()
+	fp := CertFingerprint(srv.Certificate().Raw)
+	ctx := context.Background()
+	p := Profile{Host: "127.0.0.1", API: APIConfig{Enabled: true, BaseURL: srv.URL}}
+
+	var ue *UntrustedError
+	if _, err := APICheck(ctx, p, ""); !errors.As(err, &ue) || ue.Fingerprint != fp || ue.Changed {
+		t.Fatalf("unpinned self-signed cert: want UntrustedError{%s}, got %v", fp, err)
+	}
+	p.API.CertSHA256 = fp
+	if _, err := APICheck(ctx, p, ""); err != nil {
+		t.Fatalf("pinned cert must pass: %v", err)
+	}
+	p.API.CertSHA256 = strings.Repeat("AB:", 31) + "AB"
+	if _, err := APICheck(ctx, p, ""); !errors.As(err, &ue) || !ue.Changed {
+		t.Fatalf("different pin: want Changed, got %v", err)
+	}
+}
+
+func TestAPICheckServerError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer srv.Close()
+	p := Profile{Host: "127.0.0.1", API: APIConfig{Enabled: true, BaseURL: srv.URL}}
+	if _, err := APICheck(context.Background(), p, ""); err == nil || !strings.Contains(err.Error(), "503") {
+		t.Fatalf("want a 503 error, got %v", err)
+	}
+}
+
+// fakePortal mimics the CompletePBX 5 portal login: POST /login answers JSON and sets "sid" on success.
+func fakePortal(t *testing.T, setSID bool) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/login" || r.Method != http.MethodPost || r.Header.Get("X-Requested-With") != "XMLHttpRequest" {
+			w.Write([]byte("<html>login page</html>")) // what the portal does for non-AJAX requests
+			return
+		}
+		r.ParseForm()
+		if r.Form.Get("baseurl") != "http://"+r.Host {
+			t.Errorf("baseurl = %q, want http://%s", r.Form.Get("baseurl"), r.Host)
+		}
+		if r.Form.Get("userid") == "admin" && r.Form.Get("userpass") == "good" {
+			if setSID {
+				http.SetCookie(w, &http.Cookie{Name: "sid", Value: "abc", Path: "/"})
+			}
+			json.NewEncoder(w).Encode(map[string]any{"state": "success"})
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{"state": "exception", "notification": map[string]string{"text": "Usuario o contraseña incorrecta"}})
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func TestAPICheckLogin(t *testing.T) {
+	ctx := context.Background()
+	srv := fakePortal(t, true)
+	p := Profile{Host: "127.0.0.1", API: APIConfig{Enabled: true, BaseURL: srv.URL + "/"}} // user empty → admin
+	p.Normalize()
+	if msg, err := APICheck(ctx, p, "good"); err != nil || !strings.Contains(msg, "admin") {
+		t.Fatalf("want login success as admin, got %q %v", msg, err)
+	}
+	if _, err := APICheck(ctx, p, "bad"); err == nil || !strings.Contains(err.Error(), "Usuario o contraseña incorrecta") {
+		t.Fatalf("want the portal's rejection text, got %v", err)
+	}
+	noSID := fakePortal(t, false)
+	p.API.BaseURL = noSID.URL
+	if _, err := APICheck(ctx, p, "good"); err == nil {
+		t.Fatal("state success without a sid cookie must not count as logged in")
 	}
 }

@@ -82,7 +82,7 @@ Later tools get the active profile through `ProfileService` (injected into their
 ```go
 type Profile struct {
     ID, Name, Host string
-    API APIConfig // Enabled, BaseURL (default "https://"+Host), User, CertSHA256
+    API APIConfig // Enabled, BaseURL (default "http://"+Host: the CPBX5 portal is plain HTTP on 80), User (default admin), CertSHA256
     SSH SSHConfig // Enabled, Port (22), User, KeyPath (optional), HostKeySHA256
     AMI AMIConfig // Enabled, Port (5038), User
 }
@@ -102,14 +102,14 @@ type Profile struct {
 
 | Channel | Test | Success means |
 |---|---|---|
-| API | HTTPS GET `BaseURL` through the pinned TLS config | TLS trusted and an HTTP response < 500 |
+| API | portal login `POST /login` (form `userid`, `userpass`, `baseurl`; `X-Requested-With: XMLHttpRequest`), HTTPS through the pinned TLS config; with no stored password only a GET of `BaseURL` | `state == "success"` and a `sid` cookie (or, without password, a response < 500) |
 | SSH | connect + auth (password and/or key file) + run `uname -n` | login works; reports the hostname |
 | AMI | TCP dial, read `Asterisk Call Manager/x` banner, `Action: Login`, then `Logoff` | `Response: Success` |
 
 `ChannelResult{Channel, Skipped, OK, Message (Spanish), Millis, Fingerprint, FingerprintChanged}`. One channel failing never stops the others.
 
 **Known limitations, stated in the UI where relevant:**
-- API login is not tested yet: the CompletePBX API reference is not on hand. Auth and endpoints are added with the first tool that needs the API.
+- The API check logs in to the portal but runs no module calls; the portal API (class/method posts to the root URL) is described in the local, git-ignored `docs/reference/CPBX5_CONNECTION.md`. The portal is plain HTTP: the admin password crosses the LAN in cleartext.
 - AMI on 5038 is plaintext; the secret crosses the LAN. Mitigation is on the PBX side (AMI permit/deny to the technician subnet). AMI over TLS is a later option.
 
 ## 6. UI: "Boleta de trabajo"
@@ -180,6 +180,6 @@ Direction chosen in the impeccable decision round (seed `017e8d93`, assigned can
 
 ## 11. Open decisions
 
-- CompletePBX API reference (auth scheme, endpoints): needed before any API-writing tool.
+- Portal API endpoints beyond login: described in the local reference (not committed: it holds credentials); confirm per firmware when the first API-writing tool is built.
 - Which tools follow F-01.
 - Release signing (section 7).
