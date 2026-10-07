@@ -1,0 +1,86 @@
+:root {
+  --paper: #fbfcfd;
+  --canary: #f6e27a;
+  --pink: #f4c6cf;
+  --ink: #233d7a;      /* printed spot ink: rules and labels */
+  --ink-2: #4a5f8f;    /* secondary print */
+  --hair: #c9d1e3;     /* light row rules */
+  --tint: #233d7a0f;   /* ink wash for hover and section heads */
+  --data: #16181d;     /* filled-in data */
+  --folio: #c8202f;
+  --fail: #9f1526;     /* failure text, AA on pink */
+  --stamp: #5b3a9e;
+  --f-label: 'Barlow Semi Condensed', 'Arial Narrow', sans-serif;
+  --f-data: 'Barlow', 'Segoe UI', sans-serif;
+  --f-mono: 'JetBrains Mono', Consolas, monospace;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  color-scheme: light;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #app { height: 100%; margin: 0; }
+body {
+  background: var(--paper);
+  color: var(--data);
+  font: 400 15px/1.4 var(--f-data);
+  font-variant-numeric: tabular-nums;
+}
+button, input, select { font: inherit; color: inherit; }
+input { caret-color: var(--stamp); }
+h1, h2, p { margin: 0; }
+:focus-visible { outline: 2px solid var(--stamp); outline-offset: 2px; }
+/* Highlighter on the form: selections read as canary marks. */
+::selection { background: var(--canary); color: var(--data); }
+* { scrollbar-width: thin; scrollbar-color: var(--ink-2) transparent; }
+
+/* Printed form label: spot ink, condensed caps. */
+.lbl {
+  font: 600 11px/1 var(--f-label);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 34px; padding: 0 14px;
+  border: 2px solid var(--ink); border-radius: 2px;
+  background: var(--paper); color: var(--ink);
+  font: 600 13px/1 var(--f-label); letter-spacing: 0.06em; text-transform: uppercase;
+  cursor: pointer;
+}
+.btn:hover { background: var(--tint); }
+.btn.primary { background: var(--ink); color: var(--paper); }
+.btn.primary:hover { background: #1a2f5c; }
+.btn.danger { border-color: var(--folio); color: var(--folio); }
+.btn.canary { background: var(--canary); border-color: var(--canary); color: var(--ink); }
+.btn.small { height: 28px; padding: 0 10px; font-size: 12px; }
+.btn:disabled { opacity: 0.45; cursor: default; }
+
+.link {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  color: var(--ink); font-weight: 500;
+  text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px;
+}
+
+/* Rubber stamp: lands once like inked rubber, then sits slightly askew. */
+.stamp {
+  display: inline-block; padding: 4px 10px 3px;
+  border: 2px solid currentColor; border-radius: 3px;
+  color: var(--stamp);
+  font: 700 16px/1 var(--f-label); letter-spacing: 0.14em; text-transform: uppercase;
+  transform: rotate(-3deg);
+  animation: stamp-in 260ms var(--ease-out) both;
+}
+.stamp.bad { color: var(--fail); }
+@keyframes stamp-in {
+  from { opacity: 0; filter: blur(2px); transform: rotate(-3deg) scale(1.6); }
+  to { opacity: 1; filter: blur(0); transform: rotate(-3deg) scale(1); }
+}
+
+/* While a form runs, everything but the active sheet steps back. */
+.dim { opacity: 0.35; pointer-events: none; transition: opacity 160ms var(--ease-out); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

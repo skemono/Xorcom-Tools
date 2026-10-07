@@ -1,106 +1,170 @@
 <script lang="ts">
-  import {onMount} from 'svelte';
-  import {Events, WML} from "@wailsio/runtime";
-  import {GreetService} from "../bindings/github.com/skemono/Xorcom-Tools";
+  import { onMount } from 'svelte'
+  import { UpdateService } from '../bindings/github.com/skemono/Xorcom-Tools'
+  import { modules } from './modules'
+  import { app, reload, setActive, errText } from './state.svelte'
 
-  const wailsVersion = "v3.0.0-beta.28";
+  let current = $state(modules[0])
+  const active = $derived(app.profiles.find((v) => v.profile.id === app.active)?.profile)
+  const today = new Date().toLocaleDateString('es-GT', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
-  let name: string = $state('');
-  let time: string = $state('Listening for Time event...');
+  let version = $state('')
+  type Update =
+    | { s: 'idle' | 'checking' | 'current' }
+    | { s: 'available' | 'applying'; latest: string }
+    | { s: 'error'; msg: string }
+  let upd = $state<Update>({ s: 'idle' })
 
-  let titleNameEl: HTMLElement;
-  let toastEl: HTMLElement;
-  let resultEl: HTMLElement;
-  let toastTimer: ReturnType<typeof setTimeout>;
-
-  onMount(() => {
-    Events.On('time', (v: any) => {
-      // On a narrow screen the full RFC1123 stamp is too wide for the footer, so
-      // show just the clock time there (matching the CSS breakpoint).
-      const full = v.data;
-      const compact = (full.match(/\d{1,2}:\d{2}:\d{2}/) || [full])[0];
-      time = window.matchMedia('(max-width: 640px)').matches ? compact : full;
-    });
-    // Wire up data-wml-openURL links (logos + footer "Docs" link).
-    WML.Reload();
-  });
-
-  // Crossfade the framework word in the heading ("Wails + Svelte") to the name
-  // the user entered ("Wails + <name>"): the old word fades out while the new one
-  // fades in over the same spot.
-  function swapTitleName(name: string): void {
-    const current = titleNameEl.querySelector('.title-name-text:not(.is-outgoing)');
-    if (!current || current.textContent === name) {
-      return;
+  async function check(manual: boolean) {
+    upd = { s: 'checking' }
+    try {
+      const info = await UpdateService.Check()
+      upd = info.available ? { s: 'available', latest: info.latest } : { s: 'current' }
+    } catch (e) {
+      // Offline at startup is normal; only a manual check reports the failure.
+      upd = manual ? { s: 'error', msg: errText(e) } : { s: 'idle' }
     }
-    const incoming = document.createElement('span');
-    incoming.className = 'title-name-text is-entering';
-    incoming.textContent = name;
-    current.classList.add('is-outgoing');
-    titleNameEl.appendChild(incoming);
-    // Force a reflow so the transitions run from the starting state.
-    void incoming.offsetWidth;
-    incoming.classList.remove('is-entering');
-    current.classList.add('is-leaving');
-    current.addEventListener('transitionend', () => current.remove(), {once: true});
   }
 
-  // Pop the toast with the message Go returned, then auto-dismiss it.
-  function showToast(message: string): void {
-    resultEl.innerText = message;
-    toastEl.classList.add('is-visible');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toastEl.classList.remove('is-visible'), 4000);
+  async function apply(latest: string) {
+    upd = { s: 'applying', latest }
+    try {
+      await UpdateService.Apply()
+      await UpdateService.Restart()
+    } catch (e) {
+      upd = { s: 'error', msg: errText(e) }
+    }
   }
 
-  const doGreet = (): void => {
-    let n = name || 'anonymous';
-    swapTitleName(n);
-    GreetService.Greet(n).then(showToast).catch(console.error);
-  }
+  onMount(async () => {
+    await reload()
+    version = await UpdateService.Version()
+    if (version !== 'dev') check(false)
+  })
 </script>
 
-<main class="container">
-  <header class="brand">
-    <span class="brand-mark" data-wml-openURL="https://v3.wails.io">
-      <img src="/wails.png" class="brand-logo" alt="Wails logo"/>
-    </span>
-    <span class="brand-badge" data-wml-openURL="https://svelte.dev">
-      <img src="/svelte.svg" alt="Svelte logo"/>
-    </span>
-  </header>
+<div class="desk">
+  <nav class="pad" class:dim={app.busy} aria-label="Formularios">
+    <p class="pad-name">Utilidades<br />XORCOM</p>
+    <p class="pad-sub">Talonario de formularios<br />CompletePBX 5</p>
+    <ol class="forms">
+      {#each modules as m (m.id)}
+        <li>
+          <button
+            class="form-tab"
+            class:on={m.id === current.id}
+            aria-current={m.id === current.id ? 'page' : undefined}
+            onclick={() => (current = m)}
+          >
+            <span class="code">{m.code}</span>
+            <span class="name">{m.label}</span>
+          </button>
+        </li>
+      {/each}
+    </ol>
+    <footer class="update" aria-live="polite">
+      <span class="ver">{version === 'dev' ? 'Versión de desarrollo' : `Versión ${version}`}</span>
+      {#if upd.s === 'checking'}
+        <span>Buscando actualizaciones…</span>
+      {:else if upd.s === 'current'}
+        <span>Al día</span>
+      {:else if upd.s === 'available'}
+        {@const latest = upd.latest}
+        <span>Nueva versión {latest} disponible</span>
+        <button class="btn canary small" onclick={() => apply(latest)}>Actualizar y reiniciar</button>
+      {:else if upd.s === 'applying'}
+        <span>Descargando {upd.latest}…</span>
+      {:else if upd.s === 'error'}
+        <span class="err">No se pudo actualizar: {upd.msg}</span>
+      {/if}
+      {#if version !== '' && version !== 'dev' && (upd.s === 'idle' || upd.s === 'current' || upd.s === 'error')}
+        <button class="link-light" onclick={() => check(true)}>Buscar actualizaciones</button>
+      {/if}
+    </footer>
+  </nav>
 
-  <h1 class="title"><span class="title-accent">Wails +</span> <span class="title-name" bind:this={titleNameEl}><span class="title-name-text">Svelte</span></span></h1>
-  <p class="subtitle">Build beautiful cross-platform apps with Go and Svelte.</p>
-
-  <div class="greet">
-    <div class="input-box">
-      <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      <input aria-label="input" class="input" bind:value={name} type="text" placeholder="Your name" autocomplete="off"/>
-      <button aria-label="greet-btn" class="btn" onclick={doGreet}>Greet
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-      </button>
+  <main class="sheet">
+    <div class="head-wrap">
+      <header class="head" class:dim={app.busy}>
+        <label class="box pbx">
+          <span class="lbl">PBX</span>
+          <select
+            value={app.active}
+            onchange={(e) => setActive(e.currentTarget.value)}
+            disabled={app.profiles.length === 0}
+          >
+            {#if app.profiles.length === 0}<option value="">Sin perfiles</option>{/if}
+            {#each app.profiles as v (v.profile.id)}
+              <option value={v.profile.id}>{v.profile.name}</option>
+            {/each}
+          </select>
+        </label>
+        <div class="box"><span class="lbl">Host</span><span class="val">{active?.host ?? '—'}</span></div>
+        <div class="box folio">
+          <span class="lbl">Folio</span>
+          <span class="val">Nº {app.folio ? String(app.folio).padStart(4, '0') : '—'}</span>
+        </div>
+        <div class="box"><span class="lbl">Fecha</span><span class="val">{today}</span></div>
+      </header>
     </div>
-  </div>
-</main>
-
-<hr class="footer-divider"/>
-<footer class="footer">
-  <span class="footer-version">{wailsVersion}</span>
-  <span class="footer-time">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-    <span>{time}</span>
-  </span>
-  <a class="footer-docs" data-wml-openURL="https://v3.wails.io" aria-label="Wails documentation">Docs
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
-  </a>
-</footer>
-
-<div class="toast" bind:this={toastEl} role="status" aria-live="polite">
-  <span class="toast-label">From Go</span>
-  <span aria-label="result" class="toast-msg" bind:this={resultEl}></span>
+    {#key current.id}
+      <current.component />
+    {/key}
+  </main>
 </div>
 
 <style>
-  /* Put your standard CSS here */
+  .desk { display: grid; grid-template-columns: 232px minmax(0, 1fr); height: 100%; }
+
+  .pad {
+    display: flex; flex-direction: column; min-height: 0;
+    padding: 24px 0 16px 20px;
+    background: var(--ink); color: var(--paper);
+  }
+  .pad-name { font: 700 26px/0.95 var(--f-label); letter-spacing: 0.02em; text-transform: uppercase; }
+  .pad-sub {
+    margin-top: 10px; padding-right: 20px;
+    font: 500 12px/1.3 var(--f-label); letter-spacing: 0.06em; text-transform: uppercase;
+    color: #c5cde0;
+  }
+  .forms { flex: 1; margin: 28px 0 0; padding: 0; list-style: none; }
+  .form-tab {
+    display: flex; align-items: baseline; gap: 12px; width: 100%;
+    padding: 10px 16px 10px 12px;
+    border: 0; border-radius: 2px 0 0 2px;
+    background: none; color: var(--paper); text-align: left; cursor: pointer;
+  }
+  .form-tab:hover { background: rgb(255 255 255 / 0.08); }
+  /* The pulled sheet: the active tab is paper and runs into the page. */
+  .form-tab.on { background: var(--paper); color: var(--ink); }
+  .code { font: 600 13px/1 var(--f-label); letter-spacing: 0.06em; }
+  .name { font: 500 15px/1.2 var(--f-data); }
+
+  .update { display: grid; gap: 6px; padding-right: 20px; font-size: 12px; line-height: 1.35; }
+  .ver { font: 600 11px/1 var(--f-label); letter-spacing: 0.09em; text-transform: uppercase; color: #c5cde0; }
+  .err { color: var(--pink); }
+  .update .btn { justify-self: start; }
+  .link-light {
+    justify-self: start; padding: 0; border: 0; background: none; cursor: pointer;
+    color: var(--paper); font-size: 12px; text-decoration: underline; text-underline-offset: 3px;
+  }
+
+  .sheet { overflow-y: auto; min-width: 0; }
+  /* No gap under the block: scrolled content disappears straight under its 2px rule. */
+  .head-wrap { position: sticky; top: 0; z-index: 1; padding: 24px 32px 0; background: var(--paper); }
+  .head {
+    display: grid;
+    grid-template-columns: minmax(200px, 2fr) minmax(150px, 1.4fr) minmax(110px, 0.8fr) minmax(110px, 0.8fr);
+    border: 2px solid var(--ink);
+  }
+  .box { display: grid; gap: 6px; min-width: 0; padding: 8px 12px 10px; border-left: 1px solid var(--ink); }
+  .box:first-child { border-left: 0; }
+  .val { overflow: hidden; font: 500 17px/1.2 var(--f-data); white-space: nowrap; text-overflow: ellipsis; }
+  .folio .val { color: var(--folio); font-weight: 600; }
+  .pbx select {
+    width: 100%; min-width: 0; padding: 0 22px 0 0;
+    border: 0; appearance: none; cursor: pointer;
+    background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23233d7a' stroke-width='2'/%3E%3C/svg%3E") right center no-repeat;
+    font: 600 17px/1.2 var(--f-data); color: var(--data);
+  }
 </style>
