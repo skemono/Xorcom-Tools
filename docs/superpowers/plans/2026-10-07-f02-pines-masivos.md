@@ -17,7 +17,9 @@
 - Credentials, the lab IP and the lab host-key fingerprint never go into repo files, tests, commits or memory. Lab access in commands only through env vars (`LAB_HOST`, `LAB_SSH`, `LAB_WEB`, `LAB_FP`) typed in the command, from the conversation.
 - Every write to the lab box (Task 1 test PIN, Task 8 real load, all cleanups) needs the user's explicit go-ahead in that moment. Reads are fine.
 - Add-only: F-02 never updates or deletes `ombu_pin_list_entries` rows (cleanup of test rows in Tasks 1/8 is a manual, user-approved step, not app code).
-- PIN = digits and `*`; description = printable ASCII after the filter (ñ/accents/typographic quotes and dashes mapped); empty description → SQL `NULL`.
+- PIN = digits and `*`; description = printable ASCII after the filter (ñ, every accented Latin vowel, ç, ý/ÿ and typographic quotes/dashes mapped); empty description → status `sindesc` (skipped) unless "Incluir PINes sin descripción" is on, then SQL `NULL`.
+- `docs/test_data/` holds real people's names and PINs: git-ignored, never committed, never printed. Inspect it only through aggregate counts or line numbers.
+- The portal's `GET /apply-changes` reloads the PBX with all outstanding portal changes: only ever called from an explicit, two-step user action, and only after the user's go-ahead on the lab.
 - mysql runs as `mysql --batch --default-character-set=utf8 ombutel` with SQL on stdin; never put data in the command line; one `SELECT` per call (batch output of several result sets is not separable).
 - Spanish for every user-facing string; English for code.
 - Commits end with:
@@ -60,34 +62,34 @@ No repo code. Produces two rulings consumed by Task 7: `NEEDS_PORTAL_APPLY` and 
 - Consumes: the scratchpad probe program from the brainstorming session (`<scratchpad>/probe/probe.exe`, runs one SSH command with the app's `pbx.SSHRun`; env `LAB_HOST`, `LAB_SSH`, `LAB_FP`). If it is gone, recreate it: a `main` that builds a `pbx.Profile{Host, SSH{Enabled, Port 22, User root, HostKeySHA256: LAB_FP}}` and prints `pbx.SSHRun(ctx, p, LAB_SSH, "", os.Args[1])`, module `probe` with `replace github.com/skemono/Xorcom-Tools => "<ROOT path>"`.
 - Produces: ledger lines `Task 1: Ruling: NEEDS_PORTAL_APPLY = <true|false> — <evidence>` and `Task 1: Ruling: RESAVE_LOSES_DESCRIPTIONS = <true|false> — <evidence>`.
 
-- [ ] **Step 1: Ask the user to prepare the lab** (in chat): create a PIN list named `prueba-f02` in the portal with one placeholder PIN `999001`, assign it to an outbound route, press Apply. Wait for "listo".
+- [ ] **Step 1: Ask the user to prepare the lab** (in chat): the PIN list `PruebaIGSS` already exists (created by the user). Ask them to assign it to an outbound route and press Apply in the portal, and which placeholder PIN they typed when creating it (below: `<PH>`). Wait for "listo".
 
 - [ ] **Step 2: Baseline (read-only)**
 
 ```bash
-cd "<scratchpad>/probe" && LAB_HOST=… LAB_SSH=… LAB_FP=… ./probe.exe 'mysql --batch ombutel -e "SELECT l.pin_list_id, l.description, e.password, e.description FROM ombu_pin_lists l LEFT JOIN ombu_pin_list_entries e USING (pin_list_id) WHERE l.description = '"'"'prueba-f02'"'"';"; echo "== astdb:"; asterisk -rx "database show" | grep -i -e 999001 -e pin | head; echo "== conf:"; grep -rln 999001 /etc/asterisk 2>/dev/null'
+cd "<scratchpad>/probe" && LAB_HOST=… LAB_SSH=… LAB_FP=… ./probe.exe 'mysql --batch ombutel -e "SELECT l.pin_list_id, l.description, e.password, e.description FROM ombu_pin_lists l LEFT JOIN ombu_pin_list_entries e USING (pin_list_id) WHERE l.description = '"'"'PruebaIGSS'"'"';"; echo "== astdb:"; asterisk -rx "database show" | grep -i -e <PH> -e pin | head; echo "== conf:"; grep -rln <PH> /etc/asterisk 2>/dev/null'
 ```
-Expected: the list id, the placeholder row; note whether `999001` appears in AstDB or `/etc/asterisk` (this tells where the portal's Apply puts PINs).
+Expected: the list id, the placeholder row; note whether `<PH>` appears in AstDB or `/etc/asterisk` (this tells where the portal's Apply puts PINs).
 
-- [ ] **Step 3: One test insert (ask the user first)**: "¿Inserto el PIN de prueba 999002 en prueba-f02?" On yes, with `<ID>` from Step 2:
+- [ ] **Step 3: One test insert (ask the user first)**: "¿Inserto el PIN de prueba 999002 en PruebaIGSS?" On yes, with `<ID>` from Step 2:
 
 ```bash
 ./probe.exe 'mysql ombutel -e "INSERT INTO ombu_pin_list_entries (pin_list_id, password, description) VALUES (<ID>, '"'"'999002'"'"', '"'"'PRUEBA F02'"'"');"; asterisk -rx "database show" | grep -c 999002; grep -rln 999002 /etc/asterisk 2>/dev/null | head -3'
 ```
 
 - [ ] **Step 4: Decide `NEEDS_PORTAL_APPLY`**
-  - If Step 2 showed `999001` in AstDB/conf and Step 3 shows `999002` absent there → ask the user to press Apply in the portal, re-run the Step 3 greps: present now → `NEEDS_PORTAL_APPLY = true`.
+  - If Step 2 showed `<PH>` in AstDB/conf and Step 3 shows `999002` absent there → ask the user to press Apply in the portal, re-run the Step 3 greps: present now → `NEEDS_PORTAL_APPLY = true`.
   - If Step 2 showed the placeholder nowhere outside MySQL (Asterisk reads MySQL live) → ask the user to dial through the outbound route with PIN `999002` without pressing Apply: works → `false`; rejected → `true`.
   - Ledger the ruling with the evidence.
 
-- [ ] **Step 5: Portal re-save check (ask the user)**: "Abra prueba-f02 en el portal y guárdela sin cambios." Then re-run the Step 2 SELECT: if the `PRUEBA F02` description of `999002` is now empty/NULL or the row id changed → `RESAVE_LOSES_DESCRIPTIONS = true`, else `false`. Ledger it.
+- [ ] **Step 5: Portal re-save check (ask the user)**: "Abra PruebaIGSS en el portal y guárdela sin cambios." Then re-run the Step 2 SELECT: if the `PRUEBA F02` description of `999002` is now empty/NULL or the row id changed → `RESAVE_LOSES_DESCRIPTIONS = true`, else `false`. Ledger it.
 
 - [ ] **Step 6: Cleanup (ask the user first)**: delete the test row only:
 
 ```bash
 ./probe.exe 'mysql ombutel -e "DELETE FROM ombu_pin_list_entries WHERE pin_list_id = <ID> AND password = '"'"'999002'"'"';"'
 ```
-Keep `prueba-f02` itself for Task 8 (it holds the placeholder `999001`).
+Keep `PruebaIGSS` itself for Task 8 (it holds the placeholder `<PH>`).
 
 ---
 
@@ -415,11 +417,11 @@ Claude-Session: https://claude.ai/code/session_0189kqTXMUpmvoaPH1rgHBFi"
 
 **Interfaces:**
 - Produces:
-  - status constants `PinNew="nuevo"`, `PinExists="existe"`, `PinError="error"`, `PinApplied="aplicado"`, `PinSkipped="omitido"`, `PinFailed="fallo"`
+  - status constants `PinNew="nuevo"`, `PinExists="existe"`, `PinError="error"`, `PinNoDesc="sindesc"`, `PinApplied="aplicado"`, `PinSkipped="omitido"`, `PinFailed="fallo"`
   - `type PinRow struct{ Line int; PIN, Description string; Filtered bool; Status, Error string }` (json `line, pin, description, filtered, status, error`)
   - `type CSVInfo struct{ Separator, Encoding string; Header bool; Columns, Rows int }` (json `separator, encoding, header, columns, rows`)
   - `func ParsePinCSV(raw []byte, listID int) (CSVInfo, []PinRow, error)` — error = file-level problem (Spanish); row problems are `Status: PinError` rows
-  - `func PlanPins(rows []PinRow, existing map[string]string) []PinRow` — non-error rows become `PinNew` or `PinExists`
+  - `func PlanPins(rows []PinRow, existing map[string]string, includeEmpty bool) []PinRow` — non-error rows become `PinExists`, `PinNoDesc` (empty description, unless includeEmpty) or `PinNew`
   - `func InsertSQL(listID int, rows []PinRow) string` — transaction of `INSERT … SELECT … WHERE NOT EXISTS` for `PinNew` rows only
   - `func filterDescription(s string) (string, bool)`
 
@@ -471,7 +473,7 @@ func TestParsePinCSVThreeColumnsAndUTF8(t *testing.T) {
 }
 
 func TestValidatePins(t *testing.T) {
-	raw := []byte("12a4;Primera fila invalida\n*99;Asterisco\n4321;Uno\n4321;Repetido\n;Sin PIN\n777;\u00c7elik\n888;Linea\u0001control\n")
+	raw := []byte("12a4;Primera fila invalida\n*99;Asterisco\n4321;Uno\n4321;Repetido\n;Sin PIN\n777;Linea\u0001control\n888;Stra\u00dfe\n999;Mar\u00eca \u00c7elik\n")
 	_, rows, err := ParsePinCSV(raw, 1)
 	if err != nil {
 		t.Fatal(err)
@@ -485,8 +487,11 @@ func TestValidatePins(t *testing.T) {
 	if rows[2].Status != PinError || rows[3].Status != PinError || !strings.Contains(rows[3].Error, "repetido") {
 		t.Errorf("both rows of a repeated PIN must be errors: %+v %+v", rows[2], rows[3])
 	}
-	if rows[4].Status != PinError || rows[5].Status != PinError || !strings.Contains(rows[5].Error, "Ç") || rows[6].Status != PinError {
-		t.Errorf("missing PIN, non-ASCII and control chars are errors: %+v %+v %+v", rows[4], rows[5], rows[6])
+	if rows[4].Status != PinError || rows[5].Status != PinError || rows[6].Status != PinError || !strings.Contains(rows[6].Error, "ß") {
+		t.Errorf("missing PIN, control chars and unmapped non-ASCII are errors: %+v %+v %+v", rows[4], rows[5], rows[6])
+	}
+	if rows[7].Status != "" || rows[7].Description != "Maria Celik" || !rows[7].Filtered {
+		t.Errorf("grave accents and ç are filtered like the rest: %+v", rows[7])
 	}
 }
 
@@ -509,10 +514,18 @@ func TestParsePinCSVFileErrors(t *testing.T) {
 }
 
 func TestPlanPins(t *testing.T) {
-	rows := []PinRow{{Line: 1, PIN: "1"}, {Line: 2, PIN: "2"}, {Line: 3, PIN: "x", Status: PinError}}
-	got := PlanPins(rows, map[string]string{"2": "ya"})
-	if got[0].Status != PinNew || got[1].Status != PinExists || got[2].Status != PinError {
-		t.Fatalf("plan %+v", got)
+	rows := []PinRow{
+		{Line: 1, PIN: "1", Description: "a"},
+		{Line: 2, PIN: "2", Description: "b"},
+		{Line: 3, PIN: "x", Status: PinError},
+		{Line: 4, PIN: "4"}, // no description
+	}
+	got := PlanPins(rows, map[string]string{"2": "ya"}, false)
+	if got[0].Status != PinNew || got[1].Status != PinExists || got[2].Status != PinError || got[3].Status != PinNoDesc {
+		t.Fatalf("plan without empty descriptions: %+v", got)
+	}
+	if got := PlanPins(rows, nil, true); got[3].Status != PinNew {
+		t.Fatalf("with the toggle on, an empty description is loaded: %+v", got[3])
 	}
 }
 
@@ -563,6 +576,7 @@ import (
 const (
 	PinNew     = "nuevo"
 	PinExists  = "existe"
+	PinNoDesc  = "sindesc" // empty description, skipped unless the user includes them
 	PinError   = "error"
 	PinApplied = "aplicado"
 	PinSkipped = "omitido"
@@ -690,16 +704,21 @@ func ParsePinCSV(raw []byte, listID int) (CSVInfo, []PinRow, error) {
 	return info, rows, nil
 }
 
-// PlanPins marks every valid row as new or already in the list (existing: PIN -> description).
-func PlanPins(rows []PinRow, existing map[string]string) []PinRow {
+// PlanPins marks every valid row as already in the list, without description (skipped unless
+// includeEmpty) or new. existing maps PIN -> description.
+func PlanPins(rows []PinRow, existing map[string]string, includeEmpty bool) []PinRow {
 	out := append([]PinRow(nil), rows...)
 	for i := range out {
 		if out[i].Status == PinError {
 			continue
 		}
-		if _, ok := existing[out[i].PIN]; ok {
+		_, inList := existing[out[i].PIN]
+		switch {
+		case inList:
 			out[i].Status = PinExists
-		} else {
+		case out[i].Description == "" && !includeEmpty:
+			out[i].Status = PinNoDesc
+		default:
 			out[i].Status = PinNew
 		}
 	}
@@ -729,10 +748,21 @@ var sqlEscaper = strings.NewReplacer(`\`, `\\`, `'`, `''`)
 
 func sqlString(s string) string { return "'" + sqlEscaper.Replace(s) + "'" }
 
-// Descriptions are stored without ñ or accents (user rule) and without Excel's typographic characters.
+// Descriptions are stored without ñ or any accent (user rule; the real list has grave accents too)
+// and without Excel's typographic characters.
 var descFilter = strings.NewReplacer(
-	"á", "a", "é", "e", "í", "i", "ó", "o", "ú", "u", "ü", "u", "ñ", "n",
-	"Á", "A", "É", "E", "Í", "I", "Ó", "O", "Ú", "U", "Ü", "U", "Ñ", "N",
+	"à", "a", "á", "a", "â", "a", "ã", "a", "ä", "a", "å", "a",
+	"è", "e", "é", "e", "ê", "e", "ë", "e",
+	"ì", "i", "í", "i", "î", "i", "ï", "i",
+	"ò", "o", "ó", "o", "ô", "o", "õ", "o", "ö", "o",
+	"ù", "u", "ú", "u", "û", "u", "ü", "u",
+	"ý", "y", "ÿ", "y", "ñ", "n", "ç", "c",
+	"À", "A", "Á", "A", "Â", "A", "Ã", "A", "Ä", "A", "Å", "A",
+	"È", "E", "É", "E", "Ê", "E", "Ë", "E",
+	"Ì", "I", "Í", "I", "Î", "I", "Ï", "I",
+	"Ò", "O", "Ó", "O", "Ô", "O", "Õ", "O", "Ö", "O",
+	"Ù", "U", "Ú", "U", "Û", "U", "Ü", "U",
+	"Ý", "Y", "Ñ", "N", "Ç", "C",
 	"\u2018", "'", "\u2019", "'", "\u201C", `"`, "\u201D", `"`,
 	"\u2013", "-", "\u2014", "-", "\u2026", "...", "\u00A0", " ",
 )
@@ -832,10 +862,10 @@ Claude-Session: https://claude.ai/code/session_0189kqTXMUpmvoaPH1rgHBFi"
 
 ---
 
-### Task 5: Read lists/entries and apply with read-back
+### Task 5: Read lists/entries, apply with read-back, portal apply-changes
 
 **Files:**
-- Modify: `pbx/pins.go` (append), `pbx/check.go` (rename `describe` → `Describe`), `pbx/pbx_test.go` (`describe(` → `Describe(` in `TestDescribe`), `pbx/pins_test.go` (append)
+- Modify: `pbx/pins.go` (append), `pbx/api.go` (extract the portal session, add `PortalApplyChanges`), `pbx/check.go` (rename `describe` → `Describe`), `pbx/pbx_test.go` (`describe(` → `Describe(` in `TestDescribe`; `/apply-changes` route in `fakePortal`; `TestPortalApplyChanges`), `pbx/pins_test.go` (append)
 
 **Interfaces:**
 - Consumes: `MySQL` (T3), `InsertSQL`, statuses (T4)
@@ -843,8 +873,10 @@ Claude-Session: https://claude.ai/code/session_0189kqTXMUpmvoaPH1rgHBFi"
   - `type PinList struct{ ID int; Description string; Entries int }` (json `id, description, entries`)
   - `func PinLists(ctx, p, sec) ([]PinList, error)`
   - `func PinEntries(ctx, p, sec, listID int) (map[string]string, error)` (PIN → description, `IFNULL` → "")
-  - `func ApplyPins(ctx, p, sec, listID int, rows []PinRow) []PinRow` (PinNew → aplicado/fallo by read-back; PinExists → omitido)
+  - `func ApplyPins(ctx, p, sec, listID int, rows []PinRow) []PinRow` (PinNew → aplicado/fallo by read-back; PinExists → omitido "ya existía"; PinNoDesc → omitido "sin descripción")
+  - `func PortalApplyChanges(ctx context.Context, p Profile, password string) (string, error)` (login + `GET /apply-changes`; returns the portal's notification text)
   - `func Describe(err error) string` (exported rename)
+  - `APICheck` keeps its signature and behavior (its tests stay green)
 
 - [ ] **Step 1: Write the failing tests** — append to `pbx/pins_test.go`:
 
@@ -883,14 +915,18 @@ func TestApplyPins(t *testing.T) {
 	})
 	rows := []PinRow{
 		{Line: 1, PIN: "4321", Description: "O'Brien", Status: PinNew},
-		{Line: 2, PIN: "5555", Status: PinNew},
+		{Line: 2, PIN: "5555", Description: "Ana", Status: PinNew},
 		{Line: 3, PIN: "6666", Status: PinExists},
+		{Line: 4, PIN: "7777", Status: PinNoDesc},
 	}
 	out := ApplyPins(context.Background(), sshProfile(t, addr, fp), Secrets{SSH: "pw"}, 7, rows)
-	if out[0].Status != PinApplied || out[1].Status != PinFailed || out[2].Status != PinSkipped {
+	if out[0].Status != PinApplied || out[1].Status != PinFailed || out[2].Status != PinSkipped || out[3].Status != PinSkipped {
 		t.Fatalf("statuses %+v", out)
 	}
-	if !strings.Contains(insert, "'O''Brien'") || strings.Contains(insert, "6666") {
+	if out[2].Error != "ya existía" || out[3].Error != "sin descripción" {
+		t.Fatalf("skipped lines must say why: %q %q", out[2].Error, out[3].Error)
+	}
+	if !strings.Contains(insert, "'O''Brien'") || strings.Contains(insert, "6666") || strings.Contains(insert, "7777") {
 		t.Fatalf("insert sent on stdin wrong:\n%s", insert)
 	}
 
@@ -904,10 +940,38 @@ func TestApplyPins(t *testing.T) {
 }
 ```
 
+Then in `pbx/pbx_test.go`: add this route at the top of `fakePortal`'s handler (before the `/login` check), and the test below it:
+
+```go
+		if r.URL.Path == "/apply-changes" {
+			if c, err := r.Cookie("sid"); err != nil || c.Value != "abc" || r.Header.Get("X-Requested-With") != "XMLHttpRequest" {
+				w.Write([]byte("<html>login page</html>"))
+				return
+			}
+			json.NewEncoder(w).Encode(map[string]any{"state": "success", "action": "sysreload-applied",
+				"notification": map[string]string{"text": "The system has been reloaded with all outstanding changes"}})
+			return
+		}
+```
+
+```go
+func TestPortalApplyChanges(t *testing.T) {
+	ctx := context.Background()
+	p := Profile{Host: "127.0.0.1", API: APIConfig{Enabled: true, BaseURL: fakePortal(t, true).URL}}
+	msg, err := PortalApplyChanges(ctx, p, "good")
+	if err != nil || !strings.Contains(msg, "reloaded") {
+		t.Fatalf("want the portal's notification, got %q %v", msg, err)
+	}
+	if _, err := PortalApplyChanges(ctx, p, "bad"); err == nil {
+		t.Fatal("without a session there must be no apply")
+	}
+}
+```
+
 - [ ] **Step 2: Run to verify failure**
 
-Run: `go test ./pbx/... -run 'TestPinLists|TestApplyPins' -count=1`
-Expected: FAIL, `undefined: PinLists`.
+Run: `go test ./pbx/... -run 'TestPinLists|TestApplyPins|TestPortalApplyChanges' -count=1`
+Expected: FAIL, `undefined: PinLists` / `undefined: PortalApplyChanges`.
 
 - [ ] **Step 3: Rename `describe` to `Describe`** in `pbx/check.go` (definition, its doc comment, the call in `Check`) and in `TestDescribe`. Doc comment: `// Describe turns channel and tool errors into short Spanish messages.`
 
@@ -962,7 +1026,9 @@ func ApplyPins(ctx context.Context, p Profile, sec Secrets, listID int, rows []P
 	for i := range out {
 		switch out[i].Status {
 		case PinExists:
-			out[i].Status = PinSkipped
+			out[i].Status, out[i].Error = PinSkipped, "ya existía"
+		case PinNoDesc:
+			out[i].Status, out[i].Error = PinSkipped, "sin descripción"
 		case PinNew:
 			_, landed := after[out[i].PIN]
 			switch {
@@ -981,15 +1047,163 @@ func ApplyPins(ctx context.Context, p Profile, sec Secrets, listID int, rows []P
 }
 ```
 
-- [ ] **Step 5: Run tests**
+- [ ] **Step 5: Extract the portal session in `pbx/api.go` and add `PortalApplyChanges`.** Replace the file's body after the imports with (imports stay: `context`, `encoding/json`, `fmt`, `net/http`, `net/http/cookiejar`, `net/url`, `strings`):
+
+```go
+// portal talks to the CompletePBX 5 portal the way its own JS does: a cookie jar for the "sid"
+// session, AJAX headers, JSON answers; https base URLs go through PinnedTLS.
+type portal struct {
+	client *http.Client
+	jar    http.CookieJar
+	base   string
+	url    *url.URL
+}
+
+type portalReply struct {
+	State        string `json:"state"`
+	Notification struct {
+		Text string `json:"text"`
+	} `json:"notification"`
+}
+
+func newPortal(p Profile) (*portal, error) {
+	base := strings.TrimRight(p.APIBase(), "/")
+	u, err := url.Parse(base)
+	if err != nil || u.Host == "" {
+		return nil, fmt.Errorf("URL de API inválida: %q", base)
+	}
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar, Transport: &http.Transport{TLSClientConfig: PinnedTLS(u.Hostname(), p.API.CertSHA256)}}
+	return &portal{client: client, jar: jar, base: base, url: u}, nil
+}
+
+// ajax sends req with the portal's AJAX headers (without them it answers HTML) and decodes the JSON.
+func (pt *portal) ajax(req *http.Request) (portalReply, error) {
+	req.Header.Set("X-Requested-With", "XMLHttpRequest")
+	req.Header.Set("Accept", "application/json, text/javascript, */*; q=0.01")
+	resp, err := pt.client.Do(req)
+	if err != nil {
+		return portalReply{}, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 500 {
+		return portalReply{}, fmt.Errorf("el servidor respondió %s", resp.Status)
+	}
+	var r portalReply
+	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
+		return portalReply{}, fmt.Errorf("respuesta inesperada del portal (¿es una CompletePBX 5?): %v", err)
+	}
+	return r, nil
+}
+
+// login posts the portal's login form; success needs state "success" and a "sid" cookie.
+func (pt *portal) login(ctx context.Context, user, password string) error {
+	form := url.Values{"userid": {user}, "userpass": {password}, "baseurl": {pt.base}}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, pt.base+"/login", strings.NewReader(form.Encode()))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	r, err := pt.ajax(req)
+	if err != nil {
+		return err
+	}
+	if r.State != "success" || !hasCookie(pt.jar, pt.url, "sid") {
+		msg := r.Notification.Text
+		if msg == "" {
+			msg = "usuario o contraseña incorrectos (en una PBX nueva, el admin del portal aún no tiene contraseña)"
+		}
+		return fmt.Errorf("el portal rechazó el inicio de sesión: %s", msg)
+	}
+	return nil
+}
+
+func portalUser(p Profile) string {
+	if p.API.User == "" {
+		return "admin"
+	}
+	return p.API.User
+}
+
+// APICheck verifies the portal: with a password it logs in; without one it only proves the base URL answers.
+func APICheck(ctx context.Context, p Profile, password string) (string, error) {
+	pt, err := newPortal(p)
+	if err != nil {
+		return "", err
+	}
+	defer pt.client.CloseIdleConnections()
+	if password == "" {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, pt.base+"/", nil)
+		if err != nil {
+			return "", err
+		}
+		resp, err := pt.client.Do(req)
+		if err != nil {
+			return "", err
+		}
+		resp.Body.Close()
+		if resp.StatusCode >= 500 {
+			return "", fmt.Errorf("el servidor respondió %s", resp.Status)
+		}
+		return fmt.Sprintf("el portal responde (%s); sin contraseña guardada, no se probó el inicio de sesión", resp.Status), nil
+	}
+	if err := pt.login(ctx, portalUser(p), password); err != nil {
+		return "", err
+	}
+	return "sesión iniciada en el portal como " + portalUser(p), nil
+}
+
+// PortalApplyChanges logs in and runs the portal's own Apply (GET /apply-changes). It reloads the PBX
+// with ALL outstanding portal changes, so it is only ever called from an explicit user action.
+func PortalApplyChanges(ctx context.Context, p Profile, password string) (string, error) {
+	pt, err := newPortal(p)
+	if err != nil {
+		return "", err
+	}
+	defer pt.client.CloseIdleConnections()
+	if err := pt.login(ctx, portalUser(p), password); err != nil {
+		return "", err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, pt.base+"/apply-changes", nil)
+	if err != nil {
+		return "", err
+	}
+	r, err := pt.ajax(req)
+	if err != nil {
+		return "", err
+	}
+	if r.State != "success" {
+		reason := r.Notification.Text
+		if reason == "" {
+			reason = r.State
+		}
+		return "", fmt.Errorf("el portal no aplicó los cambios: %s", reason)
+	}
+	if r.Notification.Text == "" {
+		return "cambios aplicados en la PBX", nil
+	}
+	return r.Notification.Text, nil
+}
+
+func hasCookie(jar http.CookieJar, u *url.URL, name string) bool {
+	for _, c := range jar.Cookies(u) {
+		if c.Name == name {
+			return true
+		}
+	}
+	return false
+}
+```
+
+- [ ] **Step 6: Run tests**
 
 Run: `go test ./pbx/... -count=1 -race && go vet ./pbx/...`
-Expected: PASS, vet clean.
+Expected: PASS (including the unchanged `TestPinnedTLS`, `TestAPICheckServerError`, `TestAPICheckLogin`), vet clean.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add pbx/ && git commit -m "feat(pbx): read PIN lists/entries and apply with per-line read-back
+git add pbx/ && git commit -m "feat(pbx): read PIN lists/entries, apply with per-line read-back, portal apply-changes
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_0189kqTXMUpmvoaPH1rgHBFi"
@@ -1005,7 +1219,7 @@ Claude-Session: https://claude.ai/code/session_0189kqTXMUpmvoaPH1rgHBFi"
 
 **Interfaces:**
 - Consumes: everything from Tasks 2–5; `ProfileService.NextFolio` (existing)
-- Produces (bound): `PinService.Lists() ([]pbx.PinList, error)`, `PickCSV() (string, error)`, `Preview(listID int, path string) (PinPreview, error)`, `Apply(listID int) (PinApplyResult, error)`, `OpenPortal() error`; models `PinPreview{ListID, Info pbx.CSVInfo, Rows []pbx.PinRow, New, Existing, Errors}` (json `listID, info, rows, new, existing, errors`) and `PinApplyResult{Folio, Rows, Applied, Skipped, Failed}` (json `folio, rows, applied, skipped, failed`).
+- Produces (bound): `PinService.Lists() ([]pbx.PinList, error)`, `PickCSV() (string, error)`, `Preview(listID int, path string, includeEmpty bool) (PinPreview, error)`, `Apply(listID int) (PinApplyResult, error)`, `ApplyPortal() (string, error)`; models `PinPreview{ListID, Info pbx.CSVInfo, Rows []pbx.PinRow, New, Existing, NoDesc, Errors}` (json `listID, info, rows, new, existing, noDesc, errors`) and `PinApplyResult{Folio, Rows, Applied, Skipped, Failed}` (json `folio, rows, applied, skipped, failed`).
 
 - [ ] **Step 1: Write the failing test** — create `pins_test.go`:
 
@@ -1104,6 +1318,7 @@ type PinPreview struct {
 	Rows     []pbx.PinRow `json:"rows"`
 	New      int          `json:"new"`
 	Existing int          `json:"existing"`
+	NoDesc   int          `json:"noDesc"`
 	Errors   int          `json:"errors"`
 }
 
@@ -1116,8 +1331,9 @@ type PinApplyResult struct {
 }
 
 const (
-	pinTimeout = 60 * time.Second
-	maxCSV     = 1 << 20
+	pinTimeout   = 60 * time.Second
+	applyTimeout = 5 * time.Minute // one NOT EXISTS lookup per row; the real list is 5 772 rows
+	maxCSV       = 1 << 20
 )
 
 func (s *PinService) Lists() ([]pbx.PinList, error) {
@@ -1142,7 +1358,7 @@ func (s *PinService) PickCSV() (string, error) {
 		PromptForSingleSelection()
 }
 
-func (s *PinService) Preview(listID int, path string) (PinPreview, error) {
+func (s *PinService) Preview(listID int, path string, includeEmpty bool) (PinPreview, error) {
 	p, sec, err := s.profiles.active()
 	if err != nil {
 		return PinPreview{}, err
@@ -1168,7 +1384,7 @@ func (s *PinService) Preview(listID int, path string) (PinPreview, error) {
 	if err != nil {
 		return PinPreview{}, errors.New(pbx.Describe(err))
 	}
-	rows = pbx.PlanPins(rows, existing)
+	rows = pbx.PlanPins(rows, existing, includeEmpty)
 	s.mu.Lock()
 	s.last = &pinPlan{profileID: p.ID, listID: listID, rows: rows}
 	s.mu.Unlock()
@@ -1179,6 +1395,8 @@ func (s *PinService) Preview(listID int, path string) (PinPreview, error) {
 			pv.New++
 		case pbx.PinExists:
 			pv.Existing++
+		case pbx.PinNoDesc:
+			pv.NoDesc++
 		case pbx.PinError:
 			pv.Errors++
 		}
@@ -1201,7 +1419,7 @@ func (s *PinService) Apply(listID int) (PinApplyResult, error) {
 	if err != nil {
 		return PinApplyResult{}, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), pinTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), applyTimeout)
 	defer cancel()
 	res := PinApplyResult{Folio: folio, Rows: pbx.ApplyPins(ctx, p, sec, listID, plan.rows)}
 	for _, r := range res.Rows {
@@ -1222,13 +1440,23 @@ func (s *PinService) Apply(listID int) (PinApplyResult, error) {
 	return res, nil
 }
 
-// OpenPortal opens the active PBX's portal in the browser, for the portal's own Apply step.
-func (s *PinService) OpenPortal() error {
-	p, _, err := s.profiles.active()
+// ApplyPortal runs the portal's own Apply with the profile's API credentials (F-01). It reloads
+// the PBX with ALL outstanding portal changes; the UI only calls it after a two-step confirmation.
+func (s *PinService) ApplyPortal() (string, error) {
+	p, sec, err := s.profiles.active()
 	if err != nil {
-		return err
+		return "", err
 	}
-	return application.Get().Browser.OpenURL(p.APIBase())
+	if !p.API.Enabled || sec.API == "" {
+		return "", errors.New("falta la contraseña del portal: agréguela en F-01 (canal API)")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), pinTimeout)
+	defer cancel()
+	msg, err := pbx.PortalApplyChanges(ctx, p, sec.API)
+	if err != nil {
+		return "", errors.New(pbx.Describe(err))
+	}
+	return msg, nil
 }
 
 // check refuses an Apply that would not write exactly what the user previewed.
@@ -1269,7 +1497,7 @@ func (pl *pinPlan) check(profileID string, listID int) error {
 ```bash
 go test . ./pbx/... -count=1 && go vet . ./pbx/... && wails3 generate bindings -clean=true -ts -i && grep -n "export function" frontend/bindings/github.com/skemono/Xorcom-Tools/pinservice.ts
 ```
-Expected: PASS; `Apply`, `Lists`, `OpenPortal`, `PickCSV`, `Preview` exported. Note whether `rows` is typed `PinRow[] | null` (frontend uses `?? []`).
+Expected: PASS; `Apply`, `ApplyPortal`, `Lists`, `PickCSV`, `Preview` exported. Note whether `rows` is typed `PinRow[] | null` (frontend uses `?? []`).
 
 - [ ] **Step 7: Commit**
 
@@ -1308,7 +1536,7 @@ and after the F-01 entry:
 
 ```css
 /* Per-line sello for long tables; same ink and landing, small-label size. */
-.stamp.mini { padding: 2px 6px 1px; font-size: 12px; letter-spacing: 0.1em; }
+.stamp.mini { padding: 2px 6px 1px; font-size: 12px; letter-spacing: 0.1em; animation: none; } /* static: thousands of lines */
 /* State cell: hollow pending, filled applied, struck failed. */
 .mark { display: block; width: 12px; height: 12px; border: 2px solid var(--ink); }
 .mark.filled { background: var(--ink); }
@@ -1337,8 +1565,14 @@ Then delete the now-duplicate `.mark` / `.mark.filled` rules from `Conexiones.sv
   let preview = $state<PinPreview | null>(null)
   let result = $state<PinApplyResult | null>(null)
   let note = $state('')
+  let includeEmpty = $state(false)
+  let onlyIssues = $state(false)
+  let confirmReload = $state(false)
+  let portalMsg = $state('')
 
   const rows = $derived<PinRow[]>((result?.rows ?? preview?.rows) ?? [])
+  // Thousands of lines: let the user see only the ones that need a look.
+  const shown = $derived(onlyIssues ? rows.filter((r) => r.status !== 'nuevo' && r.status !== 'aplicado') : rows)
   const canApply = $derived(!!preview && !result && preview.errors === 0 && preview.new > 0 && !app.busy)
   const sepName = (s: string) => (s === 'tab' ? 'tabulador' : `«${s}»`)
 
@@ -1390,7 +1624,8 @@ Then delete the now-duplicate `.mark` / `.mark.filled` rules from `Conexiones.sv
     result = null
     preview = null
     try {
-      preview = await PinService.Preview(listID, path.trim())
+      preview = await PinService.Preview(listID, path.trim(), includeEmpty)
+      onlyIssues = preview.errors > 0
     } catch (e) {
       note = errText(e)
     } finally {
@@ -1417,11 +1652,32 @@ Then delete the now-duplicate `.mark` / `.mark.filled` rules from `Conexiones.sv
     preview = null
     result = null
     note = ''
+    portalMsg = ''
+    confirmReload = false
+  }
+
+  // The portal's Apply reloads the whole PBX with every pending portal change: two steps, like Eliminar.
+  async function reloadPBX() {
+    if (!confirmReload) {
+      confirmReload = true
+      setTimeout(() => (confirmReload = false), 4000)
+      return
+    }
+    confirmReload = false
+    app.busy = true
+    try {
+      portalMsg = await PinService.ApplyPortal()
+    } catch (e) {
+      portalMsg = errText(e)
+    } finally {
+      app.busy = false
+    }
   }
 
   function planned(r: PinRow) {
     if (r.status === 'nuevo') return 'Nuevo'
     if (r.status === 'existe') return 'Ya existe: se omite'
+    if (r.status === 'sindesc') return 'Sin descripción: se omite'
     return `Error: ${r.error}`
   }
 </script>
@@ -1477,6 +1733,11 @@ Then delete the now-duplicate `.mark` / `.mark.filled` rules from `Conexiones.sv
     <p class="detected">
       Separador {sepName(preview.info.separator)} · {preview.info.encoding} · {preview.info.header ? 'con encabezado' : 'sin encabezado'} · {preview.info.rows} filas
     </p>
+    <div class="toggles">
+      <label class="check"><input type="checkbox" bind:checked={includeEmpty} onchange={runPreview} disabled={app.busy || !!result} /> Incluir PINes sin descripción</label>
+      <label class="check"><input type="checkbox" bind:checked={onlyIssues} /> Solo filas con observaciones</label>
+      {#if onlyIssues}<span class="tag">Mostrando {shown.length} de {rows.length} filas</span>{/if}
+    </div>
     <div class="copy" class:canary={!result}>
       <div class="strip">
         <span class="lbl">{result ? `Copia aplicada · Folio Nº ${String(result.folio).padStart(4, '0')}` : 'Copia — vista previa'}</span>
@@ -1484,7 +1745,7 @@ Then delete the now-duplicate `.mark` / `.mark.filled` rules from `Conexiones.sv
           {#if result}
             {result.applied} aplicados · {result.skipped} omitidos · {result.failed} fallidos
           {:else}
-            {preview.new} nuevos · {preview.existing} ya existen · {preview.errors} con error
+            {preview.new} nuevos · {preview.existing} ya existen · {preview.noDesc} sin descripción · {preview.errors} con error
           {/if}
         </span>
       </div>
@@ -1499,7 +1760,7 @@ Then delete the now-duplicate `.mark` / `.mark.filled` rules from `Conexiones.sv
           </tr>
         </thead>
         <tbody>
-          {#each rows as r (r.line)}
+          {#each shown as r (r.line)}
             <tr class:bad={r.status === 'error' || r.status === 'fallo'}>
               <td class="num">{String(r.line).padStart(3, '0')}</td>
               <td class="cell-state">
@@ -1513,7 +1774,7 @@ Then delete the now-duplicate `.mark` / `.mark.filled` rules from `Conexiones.sv
                 {:else if r.status === 'fallo'}
                   <span class="stamp mini bad">Falló</span> <span class="why">{r.error}</span>
                 {:else if r.status === 'omitido'}
-                  <span class="quiet">Omitido</span>
+                  <span class="quiet">Omitido</span> <span class="tag">{r.error}</span>
                 {:else}
                   <span class:why={r.status === 'error'}>{planned(r)}</span>
                 {/if}
@@ -1525,9 +1786,10 @@ Then delete the now-duplicate `.mark` / `.mark.filled` rules from `Conexiones.sv
     </div>
     {#if result && NEEDS_PORTAL_APPLY && result.applied > 0}
       <p class="notice canary">
-        Falta aplicar cambios en el portal de la PBX para que los PINes funcionen.
-        <button class="btn small" onclick={() => PinService.OpenPortal().catch((e) => (note = errText(e)))}>Abrir portal</button>
+        Falta aplicar cambios en la PBX para que los PINes funcionen. Esto recarga la PBX y aplica también cualquier otro cambio pendiente del portal.
+        <button class="btn small" onclick={reloadPBX} disabled={app.busy}>{confirmReload ? 'Confirmar: recargar la PBX' : 'Aplicar cambios en la PBX'}</button>
       </p>
+      {#if portalMsg}<p class="detected">{portalMsg}</p>{/if}
     {/if}
   {/if}
 
@@ -1568,6 +1830,9 @@ Then delete the now-duplicate `.mark` / `.mark.filled` rules from `Conexiones.sv
   .sample { margin: 0; font: 400 12px/1.45 var(--f-mono); color: var(--data); }
   .format .hint { margin: 0; }
   .detected { margin: 14px 0 6px; color: var(--ink-2); font-size: 14px; }
+  .toggles { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; margin: 0 0 8px; }
+  .check { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font-size: 13px; }
+  .check input { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); }
 
   .copy { border: 2px solid var(--ink); background: var(--paper); }
   .copy.canary { background: var(--canary); }
@@ -1601,9 +1866,10 @@ cd frontend && npx svelte-check --tsconfig ./tsconfig.json && cd .. && wails3 bu
 ```
 Expected: 0 errors; both binaries built.
 
-- [ ] **Step 6: Scripted UI check against the lab (reads only)** — extend the scratchpad CDP tooling with `cdp-pines.mjs` (same helpers as `cdp-shots.mjs`): create a "Lab (temporal)" profile from env vars as in `cdp-lab.mjs` (SSH root password, API admin password, AMI off; trust the SSH fingerprint), open F-02 (click the `F-02` form tab), pick `prueba-f02` in the list select, set the path input to a scratchpad CSV and dispatch `change`, then check:
-  1. `good.csv` (Windows-1252, `;`, header, "José Peña", `*99`, a PIN equal to the placeholder `999001`): detected line says `«;»`, `Windows-1252`, `con encabezado`; the row with 999001 says "Ya existe: se omite"; "José Peña" shows "Jose Pena (sin tildes)"; Aplicar is enabled and labelled with the new count.
-  2. `bad.csv` (a `12a4` row and a repeated PIN): those rows are pink with their reasons; Aplicar is disabled; the note says to fix the file.
+- [ ] **Step 6: Scripted UI check against the lab (reads only)** — extend the scratchpad CDP tooling with `cdp-pines.mjs` (same helpers as `cdp-shots.mjs`): create a "Lab (temporal)" profile from env vars as in `cdp-lab.mjs` (SSH root password, API admin password, AMI off; trust the SSH fingerprint), open F-02 (click the `F-02` form tab), pick `PruebaIGSS` in the list select, set the path input to a scratchpad CSV and dispatch `change`, then check:
+  1. `good.csv` (Windows-1252, `;`, header, "José Peña", `*99`, a PIN equal to the placeholder `<PH>`): detected line says `«;»`, `Windows-1252`, `con encabezado`; the row with <PH> says "Ya existe: se omite"; "José Peña" shows "Jose Pena (sin tildes)"; Aplicar is enabled and labelled with the new count.
+  2. `bad.csv` (a `12a4` row and a repeated PIN): those rows are pink with their reasons; "Solo filas con observaciones" switched itself on; Aplicar is disabled; the note says to fix the file.
+  2b. `good.csv` also has one row with an empty description: it reads "Sin descripción: se omite" and counts in "sin descripción"; ticking "Incluir PINes sin descripción" recomputes the preview and the row becomes "Nuevo" (Aplicar's count grows by one).
   3. Switching the header PBX picker is disabled while busy; changing the list select clears the preview.
   Capture `pines-preview.png` (good.csv), `pines-errors.png` (bad.csv) at 1240×700 and 1024×680 into `.impeccable/review/`. Do NOT press Aplicar here. Delete the temporary profile at the end and confirm `cmdkey /list` has no `UtilidadesXorcom` entries.
 
@@ -1626,10 +1892,11 @@ Claude-Session: https://claude.ai/code/session_0189kqTXMUpmvoaPH1rgHBFi"
 
 No new code. Proves the write path end to end.
 
-- [ ] **Step 1: Ask the user**: "¿Aplico good.csv (N PINes de prueba) en prueba-f02 del laboratorio?" Wait for yes.
+- [ ] **Step 1: Ask the user**: "¿Aplico good.csv (N PINes de prueba) en PruebaIGSS del laboratorio?" Wait for yes.
 - [ ] **Step 2:** Run the Task 7 Step 6 flow with good.csv, then press Aplicar. Expected: every new line stamps APLICADO, the placeholder line OMITIDO, folio issued, list count grows by N. Capture `pines-applied.png`.
 - [ ] **Step 3: Independent read-back** with the probe: `SELECT password, description FROM ombu_pin_list_entries WHERE pin_list_id = <ID> ORDER BY pin_list_entry_id;` shows the N rows with filtered descriptions ("Jose Pena") and `NULL` where the CSV had none; no duplicates.
 - [ ] **Step 4: Re-apply guard**: load the same good.csv again: every former new line now says "Ya existe: se omite"; Aplicar disabled ("no hay PINes nuevos").
-- [ ] **Step 5: If `NEEDS_PORTAL_APPLY`**: confirm the notice shows after Aplicar; ask the user to press Apply in the portal and (optionally) test one PIN in a call.
-- [ ] **Step 6: Cleanup (ask the user first)**: delete the test rows by PIN from `prueba-f02` with the probe; ask whether to keep or delete the `prueba-f02` list itself (portal). Delete the temporary app profile; `cmdkey /list` clean; remove `%APPDATA%\UtilidadesXorcom\profiles.json` if it holds only test data.
+- [ ] **Step 5: If `NEEDS_PORTAL_APPLY`**: confirm the notice shows after Aplicar. Ask the user: "¿Presiono Aplicar cambios en la PBX? Recarga el laboratorio y aplica cualquier cambio pendiente del portal." On yes, click it twice (two-step) and check the portal's text "The system has been reloaded…" appears; then re-run the Task 1 greps to confirm the new PINs reached AstDB/conf; optionally the user tests one PIN in a call.
+- [ ] **Step 5b: Real file, preview only (no write)**: point F-02 at `docs/test_data/PinList.csv` on `PruebaIGSS`. Expected, from the aggregate check: 5 772 rows, `«,»` · UTF-8 · con encabezado, 8 error rows (duplicate pairs at lines 12/13, 730/731, 3627/4434, 3601/5120), 1 516+26 lines marked "(sin tildes)", 0 sin descripción, Aplicar blocked, "Solo filas con observaciones" on. Note how long the preview takes. Capture nothing from this file (personal data): report counts only. A full real load happens only after the user fixes the duplicates and asks for it.
+- [ ] **Step 6: Cleanup (ask the user first)**: delete the test rows by PIN from `PruebaIGSS` with the probe; ask whether to keep or delete the `PruebaIGSS` list itself (portal). Delete the temporary app profile; `cmdkey /list` clean; remove `%APPDATA%\UtilidadesXorcom\profiles.json` if it holds only test data.
 - [ ] **Step 7:** Ledger the results (no commit needed unless a fix was required, which then goes through TDD in the owning task's files).
