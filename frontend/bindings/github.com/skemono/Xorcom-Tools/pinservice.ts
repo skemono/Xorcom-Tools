@@ -35,6 +35,14 @@ export function Lists(): $CancellablePromise<pbx$0.PinList[] | null> {
 }
 
 /**
+ * PendingPortalChanges reports whether a portal Apply would also push changes someone saved in the
+ * portal and never applied (the portal's own Apply banner).
+ */
+export function PendingPortalChanges(): $CancellablePromise<boolean> {
+    return $Call.ByID(3249832180);
+}
+
+/**
  * PickCSV opens the native file dialog; "" means the user cancelled.
  */
 export function PickCSV(): $CancellablePromise<string> {

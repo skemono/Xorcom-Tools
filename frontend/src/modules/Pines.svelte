@@ -20,6 +20,8 @@
   let onlyIssues = $state(false)
   let confirmReload = $state(false)
   let portalMsg = $state('')
+  let otherPending = $state<boolean | null>(null)
+  let pendingNote = $state('')
 
   const rows = $derived<PinRow[]>((result?.rows ?? preview?.rows) ?? [])
   // Thousands of lines: let the user see only the ones that need a look.
@@ -114,13 +116,26 @@
     note = ''
     portalMsg = ''
     confirmReload = false
+    otherPending = null
+    pendingNote = ''
   }
 
   // The portal's Apply reloads the whole PBX with every pending portal change: two steps, like Eliminar.
+  // The first step also checks for changes someone else saved in the portal and never applied.
   async function reloadPBX() {
     if (!confirmReload) {
+      app.busy = true
+      pendingNote = ''
+      try {
+        otherPending = await PinService.PendingPortalChanges()
+      } catch (e) {
+        otherPending = null
+        pendingNote = `No se pudo verificar si hay otros cambios pendientes: ${errText(e)}`
+      } finally {
+        app.busy = false
+      }
       confirmReload = true
-      setTimeout(() => (confirmReload = false), 4000)
+      setTimeout(() => (confirmReload = false), 8000) // time to read the warning
       return
     }
     confirmReload = false
@@ -252,6 +267,13 @@
       <p class="notice ink">
         Para asegurar que la PBX use los PINes nuevos, aplique los cambios. Esto recarga la PBX y aplica también cualquier otro cambio pendiente del portal.
         <button class="btn small" onclick={reloadPBX} disabled={app.busy}>{confirmReload ? 'Confirmar: recargar la PBX' : 'Aplicar cambios en la PBX'}</button>
+        {#if confirmReload && otherPending}
+          <span class="warn">Hay otros cambios pendientes en el portal; también se aplicarán.</span>
+        {:else if confirmReload && otherPending === false}
+          <span class="tag">No hay otros cambios pendientes en el portal.</span>
+        {:else if confirmReload && pendingNote}
+          <span class="tag">{pendingNote}</span>
+        {/if}
       </p>
       {#if portalMsg}<p class="detected">{portalMsg}</p>{/if}
     {/if}
@@ -279,6 +301,9 @@
   .notice { margin-bottom: 8px; padding: 10px 14px; border: 1px solid var(--fail); background: var(--pink); }
   /* Not a failure, not a preview: a printed instruction box on the white copy. */
   .notice.ink { margin-top: 10px; border: 2px solid var(--ink); background: var(--paper); }
+  .notice.ink .btn { margin-left: 8px; }
+  .warn { display: block; margin-top: 8px; color: var(--fail); font-weight: 600; } /* what else the reload will push */
+  .notice.ink .tag { display: block; margin-top: 8px; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 
   .sheetrow { display: flex; border-top: 2px solid var(--ink); border-left: 1px solid var(--ink); }

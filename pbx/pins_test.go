@@ -228,6 +228,25 @@ func TestDescriptionsArePortalSafe(t *testing.T) {
 	}
 }
 
+// The portal's Apply banner is the ombutel module's "reload" setting; a portal Apply pushes every
+// pending change, so F-02 warns when someone else's changes are waiting.
+func TestPortalPending(t *testing.T) {
+	for value, want := range map[string]bool{"value\nyes\n": true, "value\nno\n": false, "": false} {
+		var gotSQL string
+		addr, fp := fakeSSH(t, func(_ string, in []byte) (string, string, int) {
+			gotSQL = string(in)
+			return value, "", 0
+		})
+		got, err := PortalPending(context.Background(), sshProfile(t, addr, fp), Secrets{SSH: "pw"})
+		if err != nil || got != want {
+			t.Errorf("output %q: pending = %v, %v; want %v", value, got, err, want)
+		}
+		if !strings.Contains(gotSQL, "m.name = 'ombutel'") || !strings.Contains(gotSQL, "s.name = 'reload'") {
+			t.Fatalf("must read the ombutel module's reload flag, sent:\n%s", gotSQL)
+		}
+	}
+}
+
 func TestParsePinCSVFileErrors(t *testing.T) {
 	cases := map[string][]byte{
 		"xlsx":       []byte("PK\x03\x04\x14\x00rest-of-zip"),

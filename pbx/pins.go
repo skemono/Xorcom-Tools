@@ -366,3 +366,13 @@ func ApplyPins(ctx context.Context, p Profile, sec Secrets, listID int, rows []P
 	}
 	return out
 }
+
+// PortalPending reports whether the portal holds saved-but-not-applied changes (its Apply banner):
+// the ombutel module's "reload" setting is "yes". A portal Apply pushes all of them, not only F-02's.
+func PortalPending(ctx context.Context, p Profile, sec Secrets) (bool, error) {
+	rows, err := MySQL(ctx, p, sec, "SELECT s.value AS value FROM ombu_settings s JOIN ombu_modules m ON m.module_id = s.module_id WHERE m.name = 'ombutel' AND s.name = 'reload';")
+	if err != nil {
+		return false, err
+	}
+	return len(rows) > 0 && rows[0]["value"] == "yes", nil
+}

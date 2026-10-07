@@ -172,6 +172,22 @@ func (s *PinService) ApplyPortal() (string, error) {
 	return msg, nil
 }
 
+// PendingPortalChanges reports whether a portal Apply would also push changes someone saved in the
+// portal and never applied (the portal's own Apply banner).
+func (s *PinService) PendingPortalChanges() (bool, error) {
+	p, sec, err := s.profiles.active()
+	if err != nil {
+		return false, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), pinTimeout)
+	defer cancel()
+	pending, err := pbx.PortalPending(ctx, p, sec)
+	if err != nil {
+		return false, errors.New(pbx.Describe(err))
+	}
+	return pending, nil
+}
+
 // check refuses an Apply that would not write exactly what the user previewed.
 func (pl *pinPlan) check(profileID string, listID int) error {
 	if pl == nil {
