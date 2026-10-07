@@ -207,8 +207,24 @@ var descFilter = strings.NewReplacer(
 	"\u2013", "-", "\u2014", "-", "\u2026", "...", "\u00A0", " ",
 )
 
+// filterDescription makes a description portal-safe. The portal refuses to save a list whose entry
+// description is not "alphanumeric with dash and underscore" (spaces were accepted on the lab), so
+// after the accent map quotes are dropped (O'Brien -> OBrien) and other ASCII punctuation becomes a
+// space (Perez; Juan -> Perez Juan). Control and non-ASCII characters are kept so validation names them.
 func filterDescription(s string) (string, bool) {
-	f := strings.TrimSpace(descFilter.Replace(s))
+	var b strings.Builder
+	for _, r := range descFilter.Replace(s) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-', r == '_', r == ' ':
+			b.WriteRune(r)
+		case r == '\'' || r == '"' || r == '`':
+		case r > ' ' && r < 0x7F:
+			b.WriteByte(' ')
+		default:
+			b.WriteRune(r)
+		}
+	}
+	f := strings.Join(strings.Fields(b.String()), " ")
 	return f, f != strings.TrimSpace(s)
 }
 

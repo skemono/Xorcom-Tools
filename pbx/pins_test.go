@@ -154,7 +154,7 @@ func TestParsePinCSVExcelQuirks(t *testing.T) {
 	}
 	want := []PinRow{
 		{Line: 2, PIN: "4321", Description: "Jose Pena", Filtered: true},
-		{Line: 4, PIN: "5*55", Description: "Perez; Juan"},
+		{Line: 4, PIN: "5*55", Description: "Perez Juan", Filtered: true}, // portal: no ";" in descriptions
 		{Line: 5, PIN: "0123", Description: ""},
 	}
 	for i, w := range want {
@@ -170,8 +170,8 @@ func TestParsePinCSVThreeColumnsAndUTF8(t *testing.T) {
 	if err != nil || info.Encoding != "UTF-8" || info.Separator != "," || info.Columns != 3 {
 		t.Fatalf("info %+v err %v", info, err)
 	}
-	if rows[0].Description != "Dr. O'Brien - Rayos X" || rows[0].Status != "" {
-		t.Errorf("typographic quote/dash must become ASCII: %+v", rows[0])
+	if rows[0].Description != "Dr OBrien - Rayos X" || rows[0].Status != "" {
+		t.Errorf("typographic quote/dash become ASCII, then only portal-safe characters remain: %+v", rows[0])
 	}
 	if rows[1].Status != PinError || !strings.Contains(rows[1].Error, "no coincide") {
 		t.Errorf("a pin_list_id of another list must be a row error: %+v", rows[1])
@@ -198,6 +198,33 @@ func TestValidatePins(t *testing.T) {
 	}
 	if rows[7].Status != "" || rows[7].Description != "Maria Celik" || !rows[7].Filtered {
 		t.Errorf("grave accents and ç are filtered like the rest: %+v", rows[7])
+	}
+}
+
+// The portal refuses to save a list whose entry description is not "alphanumeric with dash and
+// underscore" (spaces accepted on the lab). Anything F-02 writes must stay editable in the portal.
+func TestDescriptionsArePortalSafe(t *testing.T) {
+	cases := map[string]string{
+		"Perez; Juan":          "Perez Juan",
+		"Dr. O'Brien":          "Dr OBrien",
+		"Lab/Rayos-X_2":        "Lab Rayos-X_2",
+		"  Ana ,  \"Gomez\"  ": "Ana Gomez",
+		"123456_Ana_Lopez":     "123456_Ana_Lopez",
+		"José (turno #3)!":     "Jose turno 3",
+	}
+	for in, want := range cases {
+		got, _ := filterDescription(in)
+		if got != want {
+			t.Errorf("filterDescription(%q) = %q, want %q", in, got, want)
+		}
+		for _, r := range got {
+			if !(r == ' ' || r == '-' || r == '_' || (r >= '0' && r <= '9') || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')) {
+				t.Errorf("%q kept %q, which the portal rejects", got, r)
+			}
+		}
+	}
+	if got, changed := filterDescription("Turno nocturno"); got != "Turno nocturno" || changed {
+		t.Errorf("a portal-safe description is left alone: %q %v", got, changed)
 	}
 }
 

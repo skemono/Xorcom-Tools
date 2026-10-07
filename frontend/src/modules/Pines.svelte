@@ -188,7 +188,7 @@
 5*55;Turno nocturno</pre>
       <p class="hint">
         Un PIN por fila: solo números y *. Separador ; o , · encabezado opcional · también acepta pin_list_id,PIN,descripción.
-        Las ñ y tildes se reemplazan (José Peña → Jose Pena).
+        La descripción solo admite letras, números, espacios, guion y guion bajo (regla de la PBX): ñ, tildes y otros signos se ajustan solos (José Peña; Dr. → Jose Pena Dr).
       </p>
     </div>
   {/if}
@@ -229,7 +229,7 @@
                 <span class="mark" class:filled={r.status === 'aplicado'} class:struck={r.status === 'error' || r.status === 'fallo'}></span>
               </td>
               <td class="pin">{r.pin}</td>
-              <td>{r.description}{#if r.filtered}&nbsp;<span class="tag">(sin tildes)</span>{/if}</td>
+              <td>{r.description}{#if r.filtered}&nbsp;<span class="tag" title="Se quitaron ñ, tildes o signos que la PBX no acepta">(ajustada)</span>{/if}</td>
               <td>
                 {#if r.status === 'aplicado'}
                   <span class="stamp mini" style:--r={tilts[r.line % 3]}>Aplicado</span>
