@@ -115,3 +115,29 @@ func TestSSHExecStdinAndStderr(t *testing.T) {
 		t.Fatalf("SSHRun with no stdin must still work: %q %v", out, err)
 	}
 }
+
+func TestParseBatch(t *testing.T) {
+	// mysql --batch escapes a tab inside a value as \t, a backslash as \\ and a newline as \n.
+	rows := parseBatch("id\tdescription\n7\tlista\\tuno\n8\tcon\\\\barra\\n\n")
+	if len(rows) != 2 || rows[0]["id"] != "7" || rows[0]["description"] != "lista\tuno" || rows[1]["description"] != "con\\barra\n" {
+		t.Fatalf("batch rows/unescape wrong: %#v", rows)
+	}
+	if parseBatch("") != nil {
+		t.Fatal("no output means no rows")
+	}
+}
+
+func TestMySQLRunsThroughStdin(t *testing.T) {
+	var gotCmd, gotSQL string
+	addr, fp := fakeSSH(t, func(cmd string, in []byte) (string, string, int) {
+		gotCmd, gotSQL = cmd, string(in)
+		return "n\n3\n", "", 0
+	})
+	rows, err := MySQL(context.Background(), sshProfile(t, addr, fp), Secrets{SSH: "pw"}, "SELECT COUNT(*) AS n FROM x;")
+	if err != nil || len(rows) != 1 || rows[0]["n"] != "3" {
+		t.Fatalf("rows %v err %v", rows, err)
+	}
+	if gotCmd != mysqlCmd || gotSQL != "SELECT COUNT(*) AS n FROM x;" {
+		t.Fatalf("SQL must go on stdin with the fixed command; cmd=%q sql=%q", gotCmd, gotSQL)
+	}
+}
