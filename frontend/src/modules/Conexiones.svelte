@@ -304,8 +304,6 @@
   .ledger tbody tr:last-child td { border-bottom: 0; }
   .ledger tr.editing td { background: var(--tint); }
   .cell-state { width: 34px; }
-  .mark { display: block; width: 12px; height: 12px; border: 2px solid var(--ink); }
-  .mark.filled { background: var(--ink); }
   .num { width: 48px; color: var(--ink-2); font-weight: 500; }
   .row-act { width: 80px; text-align: right; }
   .empty { padding: 10px; color: var(--ink-2); }
