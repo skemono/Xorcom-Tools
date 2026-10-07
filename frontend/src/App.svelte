@@ -5,6 +5,8 @@
   import { app, reload, setActive, errText } from './state.svelte'
 
   let current = $state(modules[0])
+  // Height of the sticky header block, for sheets that pin their own headings under it.
+  let headH = $state(0)
   const active = $derived(app.profiles.find((v) => v.profile.id === app.active)?.profile)
   const today = new Date().toLocaleDateString('es-GT', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
@@ -83,8 +85,8 @@
     </footer>
   </nav>
 
-  <main class="sheet">
-    <div class="head-wrap">
+  <main class="sheet" style:--head-h="{headH}px">
+    <div class="head-wrap" bind:offsetHeight={headH}>
       <header class="head" class:dim={app.busy}>
         <label class="box pbx">
           <span class="lbl">PBX</span>

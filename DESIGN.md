@@ -195,7 +195,7 @@ A two-ink printed form (spot blue plus near-black fill-in) on three copy papers,
 - **Sello Violet** (sello-violet): the success stamp, the text caret, and the 2px focus outline. It is the technician's hand-applied mark.
 
 ### Tertiary (copy papers)
-- **Canary Copy** (canary-copy): the preview copy of a write flow (defined, not yet built; see Components), and text selection highlight. One shipped exception: the pad's "Actualizar y reiniciar" button.
+- **Canary Copy** (canary-copy): the preview copy of a write flow (built in F-02; see Components), and the text selection highlight on white copy. One shipped exception: the pad's "Actualizar y reiniciar" button.
 - **Pink Copy** (pink-copy): the failure copy. A failed outcome cell and the corrupt-file notice take this background; error text in the ink pad uses it as text.
 - **Failure Ink** (failure-ink): failure stamp and the notice border; chosen for AA contrast on pink.
 
@@ -215,7 +215,7 @@ A two-ink printed form (spot blue plus near-black fill-in) on three copy papers,
 
 **Display Font:** Barlow Semi Condensed (with Arial Narrow)
 **Body Font:** Barlow (with Segoe UI)
-**Label/Mono Font:** Barlow Semi Condensed caps for labels; JetBrains Mono (with Consolas) only for fingerprints, hashes, and file paths
+**Label/Mono Font:** Barlow Semi Condensed caps for labels; JetBrains Mono (with Consolas) only for data shown as data: fingerprints, hashes, file paths, and file-format samples
 
 **Character:** The condensed face is the printer's type: uppercase, tracked, in spot ink. The regular Barlow is the fill-in: sentence case, black, tabular figures everywhere so numbers align in columns. All faces are bundled via @fontsource and work offline.
 
@@ -231,7 +231,7 @@ A two-ink printed form (spot blue plus near-black fill-in) on three copy papers,
 - **Label** (600, 11px, 0.09em, uppercase): every printed field label, column heading, and section heading.
 - **Button** (600, 13px, 0.06em, uppercase): all buttons except small ones (Small label).
 - **Stamp** (700, 16px, 0.14em, uppercase): the sello only.
-- **Mono** (400, 11px, 1.45): fingerprints (break-all) and file paths.
+- **Mono** (400, 11-13px, 1.45): fingerprints (break-all), file paths (13px in the path field), and the CSV format sample (12px).
 
 ### Named Rules
 **The Printed vs. Filled Rule.** If the form printer would have put it there, it is condensed caps in spot ink. If the technician or the PBX supplied it, it is Barlow sentence case in data ink. Never set data in caps or labels in sentence case.
@@ -304,8 +304,17 @@ Under each channel: Label title, then pending text ("Sin probar" / "Probando…"
 ### Sticky Action Bar
 The signature line of every form; see Layout. Always present at the bottom of the sheet.
 
-### Write-Flow Preview Copy (defined, NOT YET BUILT)
-Tokens exist (canary-copy, sello-violet, failure-ink, pink-copy); no component ships yet. Specified for the first tool that writes to a PBX: the preview renders on canary copy with a "COPIA — VISTA PREVIA" strip; numbered lines with `Actual │ Nuevo` on one baseline; a fixed state cell per line (hollow pending, filled applied, red strike failed) so columns never reflow; "Aplicar" stamps each line as results arrive (violet APLICADO, red FALLÓ), and failures collect on a pink copy. Build it from the existing stamp, ledger mark, and ruled-field patterns; re-run documentation once it ships.
+### Write-Flow Preview Copy (built in F-02 PINes masivos)
+The copy a write flow shows before and after "Aplicar". Shipped first in F-02; any tool that writes to a PBX reuses it.
+- **Frame:** a 2px spot-ink box. Before Aplicar the paper is canary ("Copia — vista previa"); after, white ("Copia aplicada · Folio Nº 0008", the folio number in folio red) with one full-size sello in the strip (violet APLICADO, or failure ink CON FALLAS) that lands once.
+- **Strip:** 36px, Label caps on the left, Small-label counts on the right ("4 nuevos · 0 ya existen · 1 sin descripción · 0 con error"), 2px rule under it. Counts use Spanish plurals and group thousands with a narrow no-break space ("5 768").
+- **Pinned heads:** the strip and the column-heading row are sticky under the header block (`--head-h`, measured by the shell), on opaque paper of the copy's color, so thousands of lines scroll beneath them.
+- **Lines:** a fixed-layout table (`table-layout: fixed`; Nº 72px, state 34px, PIN 150px, description auto, result 36%), so columns never reflow when a filter or the stamps change a row. Nº is the file's line number, zero-padded to the widest line. Row rules on canary are spot ink at 22% (the hairline token vanishes on yellow); the last row drops its rule against the frame.
+- **State cell:** the ledger's 12px mark with three states: hollow (pending, skipped), filled ink (applied), struck (failure-ink border and a 2px diagonal: error or failed).
+- **Result column:** before Aplicar "Nuevo", or quiet Small-label "YA EXISTE:" / "SIN DESCRIPCIÓN:" + fine-print "se omite", or failure-ink "Error: <reason>". After: per-line mini sellos (12px, 2px border, static, tilts cycling -3 / -1.5 / -4.5deg so no impression repeats) APLICADO or FALLÓ + reason, or quiet OMITIDO + reason.
+- **Failure:** error and failed rows turn pink copy; their line number and fine print switch to data ink for AA.
+- **Selection:** on canary paper the canary highlight would vanish, so selection there is reversed spot ink.
+- **Around it:** two checkboxes above the copy ("Incluir PINes sin descripción", "Solo filas con observaciones", the latter switching itself on when the file has errors, with "Mostrando N de M filas"). A two-step "Aplicar cambios en la PBX" sits in a white box with a 2px ink rule below the applied copy (never canary or pink: it is an instruction, not a preview or a failure).
 
 ### Adding a Form
 A new tool is one Svelte form in `frontend/src/modules/` plus one registry line with code `F-0N` and a Spanish label. It inherits the shell (pad tab, sticky header block), and composes: the boxed code + Display title, a secondary-print instruction line, Label section headings, the 6-column ruled grid, Buttons, Stamp outcomes, and the sticky action bar.

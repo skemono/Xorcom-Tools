@@ -31,6 +31,8 @@ h1, h2, p { margin: 0; }
 :focus-visible { outline: 2px solid var(--stamp); outline-offset: 2px; }
 /* Highlighter on the form: selections read as canary marks. */
 ::selection { background: var(--canary); color: var(--data); }
+/* On canary paper a canary highlight vanishes: select in reversed ink there. */
+.copy.canary ::selection { background: var(--ink); color: var(--paper); }
 * { scrollbar-width: thin; scrollbar-color: var(--ink-2) transparent; }
 
 /* Printed form label: spot ink, condensed caps. */
