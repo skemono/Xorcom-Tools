@@ -1,15 +1,19 @@
 package pbx
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/zalando/go-keyring"
 )
@@ -219,5 +223,64 @@ func TestAPICheckLogin(t *testing.T) {
 	p.API.BaseURL = noSID.URL
 	if _, err := APICheck(ctx, p, "good"); err == nil {
 		t.Fatal("state success without a sid cookie must not count as logged in")
+	}
+}
+
+// fakeAMI serves one connection: banner, an unsolicited event, then Success if the secret is "ok".
+func fakeAMI(t *testing.T, banner string) string {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { ln.Close() })
+	go func() {
+		c, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer c.Close()
+		io.WriteString(c, banner+"\r\n")
+		r := bufio.NewReader(c)
+		secret := ""
+		for {
+			line, err := r.ReadString('\n')
+			if err != nil {
+				return
+			}
+			line = strings.TrimSpace(line)
+			if v, ok := strings.CutPrefix(line, "Secret: "); ok {
+				secret = v
+			}
+			if line == "" {
+				break
+			}
+		}
+		io.WriteString(c, "Event: FullyBooted\r\nStatus: Fully Booted\r\n\r\n")
+		if secret == "ok" {
+			io.WriteString(c, "Response: Success\r\nMessage: Authentication accepted\r\n\r\n")
+		} else {
+			io.WriteString(c, "Response: Error\r\nMessage: Authentication failed\r\n\r\n")
+		}
+		io.Copy(io.Discard, r) // wait for Logoff / close
+	}()
+	return ln.Addr().String()
+}
+
+func TestAMILogin(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if banner, err := AMILogin(ctx, fakeAMI(t, "Asterisk Call Manager/7.0.3"), "admin", "ok"); err != nil || banner != "Asterisk Call Manager/7.0.3" {
+		t.Fatalf("want success, got %q %v", banner, err)
+	}
+	if _, err := AMILogin(ctx, fakeAMI(t, "Asterisk Call Manager/7.0.3"), "admin", "bad"); err == nil || !strings.Contains(err.Error(), "Authentication failed") {
+		t.Fatalf("want auth failure, got %v", err)
+	}
+	if _, err := AMILogin(ctx, fakeAMI(t, "SSH-2.0-OpenSSH_9.2"), "admin", "ok"); err == nil {
+		t.Fatal("a non-AMI banner must fail")
+	}
+	// Review focus 2: CR/LF must be rejected before any dial (the address is unroutable on purpose).
+	if _, err := AMILogin(ctx, "192.0.2.1:5038", "admin", "x\r\nAction: Originate"); err == nil || !strings.Contains(err.Error(), "saltos de línea") {
+		t.Fatalf("want CR/LF rejection, got %v", err)
 	}
 }
