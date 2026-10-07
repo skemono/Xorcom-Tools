@@ -1,9 +1,11 @@
 package pbx
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strconv"
@@ -26,8 +28,15 @@ func HostKeyCheck(pin string) ssh.HostKeyCallback {
 	}
 }
 
-// SSHRun connects with the key file and/or password and runs one command.
+// SSHRun connects with the key file and/or password and runs one command, returning trimmed output.
 func SSHRun(ctx context.Context, p Profile, password, keyPassphrase, cmd string) (string, error) {
+	out, err := SSHExec(ctx, p, password, keyPassphrase, cmd, nil)
+	return strings.TrimSpace(out), err
+}
+
+// SSHExec runs one command with stdin (secrets and data travel there, never in the command line).
+// It returns stdout as is; on failure the error carries the remote stderr.
+func SSHExec(ctx context.Context, p Profile, password, keyPassphrase, cmd string, stdin io.Reader) (string, error) {
 	var auth []ssh.AuthMethod
 	if p.SSH.KeyPath != "" {
 		raw, err := os.ReadFile(p.SSH.KeyPath)
@@ -96,9 +105,10 @@ func SSHRun(ctx context.Context, p Profile, password, keyPassphrase, cmd string)
 		return "", err
 	}
 	defer sess.Close()
-	out, err := sess.CombinedOutput(cmd)
-	if err != nil {
-		return "", fmt.Errorf("%w: %s", err, strings.TrimSpace(string(out)))
+	var stdout, stderr bytes.Buffer
+	sess.Stdin, sess.Stdout, sess.Stderr = stdin, &stdout, &stderr
+	if err := sess.Run(cmd); err != nil {
+		return stdout.String(), fmt.Errorf("%w: %s", err, strings.TrimSpace(stderr.String()))
 	}
-	return strings.TrimSpace(string(out)), nil
+	return stdout.String(), nil
 }
