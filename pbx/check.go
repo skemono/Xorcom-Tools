@@ -63,7 +63,7 @@ func Check(ctx context.Context, p Profile, s Secrets) []ChannelResult {
 			r := &results[i]
 			r.Millis = time.Since(start).Milliseconds()
 			if err != nil {
-				r.Message = describe(err)
+				r.Message = Describe(err)
 				var ue *UntrustedError
 				if errors.As(err, &ue) {
 					r.Fingerprint, r.FingerprintChanged = ue.Fingerprint, ue.Changed
@@ -77,9 +77,9 @@ func Check(ctx context.Context, p Profile, s Secrets) []ChannelResult {
 	return results
 }
 
-// describe turns channel errors into short Spanish messages.
+// Describe turns channel and tool errors into short Spanish messages.
 // ponytail: refused/auth cases match on error text; switch to typed checks if Go's messages drift.
-func describe(err error) string {
+func Describe(err error) string {
 	var ue *UntrustedError
 	var dns *net.DNSError
 	var ne net.Error

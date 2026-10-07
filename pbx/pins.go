@@ -2,6 +2,7 @@ package pbx
 
 import (
 	"bytes"
+	"context"
 	"encoding/csv"
 	"errors"
 	"fmt"
@@ -280,4 +281,72 @@ func detectSeparator(text string) (rune, string) {
 		return best, "tab"
 	}
 	return best, string(best)
+}
+
+// PinList is a row of ombu_pin_lists with its current entry count.
+type PinList struct {
+	ID          int    `json:"id"`
+	Description string `json:"description"`
+	Entries     int    `json:"entries"`
+}
+
+func PinLists(ctx context.Context, p Profile, sec Secrets) ([]PinList, error) {
+	rows, err := MySQL(ctx, p, sec, "SELECT l.pin_list_id AS id, l.description AS description, COUNT(e.pin_list_entry_id) AS entries "+
+		"FROM ombu_pin_lists l LEFT JOIN ombu_pin_list_entries e ON e.pin_list_id = l.pin_list_id "+
+		"GROUP BY l.pin_list_id, l.description ORDER BY l.pin_list_id;")
+	if err != nil {
+		return nil, err
+	}
+	lists := make([]PinList, 0, len(rows))
+	for _, r := range rows {
+		id, _ := strconv.Atoi(r["id"])
+		n, _ := strconv.Atoi(r["entries"])
+		lists = append(lists, PinList{ID: id, Description: r["description"], Entries: n})
+	}
+	return lists, nil
+}
+
+// PinEntries returns PIN -> description for one list.
+func PinEntries(ctx context.Context, p Profile, sec Secrets, listID int) (map[string]string, error) {
+	rows, err := MySQL(ctx, p, sec, fmt.Sprintf("SELECT password AS pin, IFNULL(description, '') AS description FROM ombu_pin_list_entries WHERE pin_list_id = %d;", listID))
+	if err != nil {
+		return nil, err
+	}
+	m := make(map[string]string, len(rows))
+	for _, r := range rows {
+		m[r["pin"]] = r["description"]
+	}
+	return m, nil
+}
+
+// ApplyPins runs the add-only transaction, then stamps each line from a read-back of the list.
+func ApplyPins(ctx context.Context, p Profile, sec Secrets, listID int, rows []PinRow) []PinRow {
+	out := append([]PinRow(nil), rows...)
+	_, err := MySQL(ctx, p, sec, InsertSQL(listID, rows))
+	var after map[string]string
+	verifyErr := error(nil)
+	if err == nil {
+		after, verifyErr = PinEntries(ctx, p, sec, listID)
+	}
+	for i := range out {
+		switch out[i].Status {
+		case PinExists:
+			out[i].Status, out[i].Error = PinSkipped, "ya existía"
+		case PinNoDesc:
+			out[i].Status, out[i].Error = PinSkipped, "sin descripción"
+		case PinNew:
+			_, landed := after[out[i].PIN]
+			switch {
+			case err != nil:
+				out[i].Status, out[i].Error = PinFailed, Describe(err)
+			case verifyErr != nil:
+				out[i].Status, out[i].Error = PinFailed, "no se pudo verificar: "+Describe(verifyErr)
+			case !landed:
+				out[i].Status, out[i].Error = PinFailed, "no se encontró después de aplicar"
+			default:
+				out[i].Status = PinApplied
+			}
+		}
+	}
+	return out
 }

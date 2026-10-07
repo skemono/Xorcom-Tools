@@ -255,3 +255,61 @@ func TestInsertSQLEscapes(t *testing.T) {
 		t.Error("existing PINs must not be inserted")
 	}
 }
+
+func TestPinListsAndEntries(t *testing.T) {
+	addr, fp := fakeSSH(t, func(_ string, in []byte) (string, string, int) {
+		sql := string(in)
+		switch {
+		case strings.Contains(sql, "FROM ombu_pin_lists"):
+			return "id\tdescription\tentries\n7\tGuardia\t2\n", "", 0
+		case strings.Contains(sql, "pin_list_id = 7"):
+			return "pin\tdescription\n4321\tJuan\n5555\t\n", "", 0
+		}
+		return "", "unexpected", 1
+	})
+	p, sec := sshProfile(t, addr, fp), Secrets{SSH: "pw"}
+	lists, err := PinLists(context.Background(), p, sec)
+	if err != nil || len(lists) != 1 || lists[0] != (PinList{ID: 7, Description: "Guardia", Entries: 2}) {
+		t.Fatalf("lists %+v err %v", lists, err)
+	}
+	got, err := PinEntries(context.Background(), p, sec, 7)
+	if err != nil || len(got) != 2 || got["4321"] != "Juan" || got["5555"] != "" {
+		t.Fatalf("entries %v err %v", got, err)
+	}
+}
+
+func TestApplyPins(t *testing.T) {
+	var insert string
+	addr, fp := fakeSSH(t, func(_ string, in []byte) (string, string, int) {
+		sql := string(in)
+		if strings.HasPrefix(sql, "START TRANSACTION") {
+			insert = sql
+			return "", "", 0
+		}
+		return "pin\tdescription\n4321\tO'Brien\n6666\tvieja\n", "", 0 // 5555 did not land
+	})
+	rows := []PinRow{
+		{Line: 1, PIN: "4321", Description: "O'Brien", Status: PinNew},
+		{Line: 2, PIN: "5555", Description: "Ana", Status: PinNew},
+		{Line: 3, PIN: "6666", Status: PinExists},
+		{Line: 4, PIN: "7777", Status: PinNoDesc},
+	}
+	out := ApplyPins(context.Background(), sshProfile(t, addr, fp), Secrets{SSH: "pw"}, 7, rows)
+	if out[0].Status != PinApplied || out[1].Status != PinFailed || out[2].Status != PinSkipped || out[3].Status != PinSkipped {
+		t.Fatalf("statuses %+v", out)
+	}
+	if out[2].Error != "ya existía" || out[3].Error != "sin descripción" {
+		t.Fatalf("skipped lines must say why: %q %q", out[2].Error, out[3].Error)
+	}
+	if !strings.Contains(insert, "'O''Brien'") || strings.Contains(insert, "6666") || strings.Contains(insert, "7777") {
+		t.Fatalf("insert sent on stdin wrong:\n%s", insert)
+	}
+
+	failAddr, failFP := fakeSSH(t, func(string, []byte) (string, string, int) {
+		return "", "ERROR 1452 (23000) at line 2: Cannot add or update a child row", 1
+	})
+	out = ApplyPins(context.Background(), sshProfile(t, failAddr, failFP), Secrets{SSH: "pw"}, 7, rows)
+	if out[0].Status != PinFailed || !strings.Contains(out[0].Error, "1452") || out[2].Status != PinSkipped {
+		t.Fatalf("a failed transaction fails every new row with the reason: %+v", out)
+	}
+}

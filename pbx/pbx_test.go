@@ -243,6 +243,15 @@ func TestAPICheckServerError(t *testing.T) {
 func fakePortal(t *testing.T, setSID bool) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/apply-changes" {
+			if c, err := r.Cookie("sid"); err != nil || c.Value != "abc" || r.Header.Get("X-Requested-With") != "XMLHttpRequest" {
+				w.Write([]byte("<html>login page</html>"))
+				return
+			}
+			json.NewEncoder(w).Encode(map[string]any{"state": "success", "action": "sysreload-applied",
+				"notification": map[string]string{"text": "The system has been reloaded with all outstanding changes"}})
+			return
+		}
 		if r.URL.Path != "/login" || r.Method != http.MethodPost || r.Header.Get("X-Requested-With") != "XMLHttpRequest" {
 			w.Write([]byte("<html>login page</html>")) // what the portal does for non-AJAX requests
 			return
@@ -279,6 +288,18 @@ func TestAPICheckLogin(t *testing.T) {
 	p.API.BaseURL = noSID.URL
 	if _, err := APICheck(ctx, p, "good"); err == nil {
 		t.Fatal("state success without a sid cookie must not count as logged in")
+	}
+}
+
+func TestPortalApplyChanges(t *testing.T) {
+	ctx := context.Background()
+	p := Profile{Host: "127.0.0.1", API: APIConfig{Enabled: true, BaseURL: fakePortal(t, true).URL}}
+	msg, err := PortalApplyChanges(ctx, p, "good")
+	if err != nil || !strings.Contains(msg, "reloaded") {
+		t.Fatalf("want the portal's notification, got %q %v", msg, err)
+	}
+	if _, err := PortalApplyChanges(ctx, p, "bad"); err == nil {
+		t.Fatal("without a session there must be no apply")
 	}
 }
 
@@ -375,8 +396,8 @@ func TestDescribe(t *testing.T) {
 		{errors.New("ssh: handshake failed: ssh: unable to authenticate"), "usuario o contraseña SSH incorrectos"},
 	}
 	for _, c := range cases {
-		if got := describe(c.err); !strings.Contains(got, c.want) {
-			t.Errorf("describe(%v) = %q, want it to contain %q", c.err, got, c.want)
+		if got := Describe(c.err); !strings.Contains(got, c.want) {
+			t.Errorf("Describe(%v) = %q, want it to contain %q", c.err, got, c.want)
 		}
 	}
 }
