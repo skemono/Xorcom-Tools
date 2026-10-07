@@ -46,6 +46,22 @@ typography:
     fontWeight: 500
     lineHeight: 1.3
     fontFeature: "tnum"
+  note:
+    fontFamily: "'Barlow', 'Segoe UI', sans-serif"
+    fontSize: "14px"
+    fontWeight: 400
+    lineHeight: 1.4
+  fine-print:
+    fontFamily: "'Barlow', 'Segoe UI', sans-serif"
+    fontSize: "12px"
+    fontWeight: 400
+    lineHeight: 1.35
+  small-label:
+    fontFamily: "'Barlow Semi Condensed', 'Arial Narrow', sans-serif"
+    fontSize: "12px"
+    fontWeight: 600
+    lineHeight: 1
+    letterSpacing: "0.06em"
   label:
     fontFamily: "'Barlow Semi Condensed', 'Arial Narrow', sans-serif"
     fontSize: "11px"
@@ -207,10 +223,13 @@ A two-ink printed form (spot blue plus near-black fill-in) on three copy papers,
 - **Display** (700, 30px, 1): form title (e.g. CONEXIONES), uppercase in spot ink, beside a 2px-boxed form code (F-01, 700 15px).
 - **Headline** (700, 26px, 0.95): the pad's name block (UTILIDADES XORCOM), uppercase on ink.
 - **Title** (500, 17px, 1.2): header block values (Host, Fecha); the PBX picker uses 600; the folio uses 600 in red.
-- **Body** (400, 15px, 1.4): default text; instructions at 14px in secondary print, max 72ch; hints and messages at 12-13px, 1.35.
+- **Body** (400, 15px, 1.4): default text.
+- **Note** (400, 14px, 1.4): the form's instruction line (one line, secondary print, max 72ch) and the status note beside the actions.
+- **Fine print** (400, 12px, 1.35): channel hints, the pad's update area; outcome messages run at 13px.
+- **Small label** (600, 12px, 0.06em, uppercase): small buttons, pending outcome states, the pad subtitle.
 - **Field data** (500, 16px, 1.3): typed values inside ruled fields.
-- **Label** (600, 11px, 0.09em, uppercase): every printed field label, column heading, and section heading. Pending outcome states use the same face at 12px in secondary print.
-- **Button** (600, 13px, 0.06em, uppercase): all buttons; 12px on small buttons.
+- **Label** (600, 11px, 0.09em, uppercase): every printed field label, column heading, and section heading.
+- **Button** (600, 13px, 0.06em, uppercase): all buttons except small ones (Small label).
 - **Stamp** (700, 16px, 0.14em, uppercase): the sello only.
 - **Mono** (400, 11px, 1.45): fingerprints (break-all) and file paths.
 
