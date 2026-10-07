@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte'
+  import { tick, untrack } from 'svelte'
   import { ProfileService } from '../../bindings/github.com/skemono/Xorcom-Tools'
   import type { ChannelResult, Profile, Secrets } from '../../bindings/github.com/skemono/Xorcom-Tools/pbx'
   import { app, reload, setActive, errText } from '../state.svelte'
@@ -64,10 +64,13 @@
   async function runTest() {
     if (!form.id) return
     app.busy = true
-    app.folio++
     results = []
     try {
+      app.folio = await ProfileService.NextFolio()
       results = (await ProfileService.Test(form.id)) ?? []
+      await tick()
+      // Let the technician watch the stamps land without scrolling by hand.
+      document.querySelector('.outcome')?.scrollIntoView({ block: 'nearest' })
     } catch (e) {
       note = errText(e)
     } finally {
@@ -109,7 +112,7 @@
   const resultFor = (ch: string) => results.find((r) => r.channel === ch)
 </script>
 
-{#snippet outcome(ch: string, title: string, enabled: boolean)}
+{#snippet outcome(ch: string, title: string, enabled: boolean, tilt: string)}
   {@const r = resultFor(ch)}
   <div class="outcome" class:fail={r && !r.ok && !r.skipped} aria-live="polite">
     <span class="lbl">{title}</span>
@@ -121,7 +124,7 @@
       <span class="pending">Sin probar</span>
     {:else if !r.skipped}
       <span class="stamp-row">
-        <span class="stamp" class:bad={!r.ok}>{r.ok ? 'Conectado' : 'Falló'}</span>
+        <span class="stamp" class:bad={!r.ok} style:--r={tilt}>{r.ok ? 'Conectado' : 'Falló'}</span>
         <span class="ms">{r.millis} ms</span>
       </span>
       <span class="msg">{r.message}</span>
@@ -262,9 +265,10 @@
       <p class="hint">AMI viaja sin cifrar: en la PBX limite el acceso (permit/deny) a la red de los técnicos.</p>
     </fieldset>
 
-    {@render outcome('api', 'Prueba API', form.api.enabled)}
-    {@render outcome('ssh', 'Prueba SSH', form.ssh.enabled)}
-    {@render outcome('ami', 'Prueba AMI', form.ami.enabled)}
+    <!-- Three separate impressions, never one stamp pasted thrice. -->
+    {@render outcome('api', 'Prueba API', form.api.enabled, '-3deg')}
+    {@render outcome('ssh', 'Prueba SSH', form.ssh.enabled, '-1.5deg')}
+    {@render outcome('ami', 'Prueba AMI', form.ami.enabled, '-4.5deg')}
   </form>
 
   <div class="actions">
@@ -281,20 +285,20 @@
 </div>
 
 <style>
-  .page { padding: 32px 32px 48px; }
+  .page { padding: 20px 32px 0; }
   .title { display: flex; align-items: center; gap: 14px; }
   .title .code {
     padding: 5px 8px 4px; border: 2px solid var(--ink);
     font: 700 15px/1 var(--f-label); letter-spacing: 0.06em; color: var(--ink);
   }
   h1 { font: 700 30px/1 var(--f-label); letter-spacing: 0.03em; text-transform: uppercase; color: var(--ink); }
-  .instr { max-width: 72ch; margin: 10px 0 28px; color: var(--ink-2); font-size: 14px; }
+  .instr { max-width: 72ch; margin: 10px 0 16px; color: var(--ink-2); font-size: 14px; }
   .notice { margin-bottom: 24px; padding: 10px 14px; border: 1px solid var(--fail); background: var(--pink); }
   .notice code { font: 12px var(--f-mono); }
   .section { display: block; margin-bottom: 8px; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 
-  .ledger { width: 100%; margin-bottom: 36px; border-collapse: collapse; border-block: 2px solid var(--ink); }
+  .ledger { width: 100%; margin-bottom: 20px; border-collapse: collapse; border-block: 2px solid var(--ink); }
   .ledger th { padding: 8px 10px 6px; border-bottom: 1px solid var(--ink); text-align: left; }
   .ledger td { padding: 9px 10px; border-bottom: 1px solid var(--hair); }
   .ledger tbody tr:last-child td { border-bottom: 0; }
@@ -328,6 +332,8 @@
     border-right: 1px solid var(--ink); border-bottom: 1px solid var(--ink);
   }
   .channel .field { border-right: 0; }
+  /* The fieldset draws the column's bottom rule; a last field's own rule would double it. */
+  .channel > :last-child { border-bottom: 0; }
   .channel.off .field { background: var(--tint); }
   .chan-head {
     float: left; width: 100%;
@@ -343,7 +349,7 @@
 
   .outcome {
     grid-column: span 2; display: grid; align-content: start; justify-items: start; gap: 10px;
-    min-height: 120px; padding: 10px 12px 14px;
+    min-height: 96px; padding: 10px 12px 14px;
     border-right: 1px solid var(--ink); border-bottom: 2px solid var(--ink);
   }
   .outcome.fail { background: var(--pink); }
@@ -354,6 +360,12 @@
   .outcome.fail .ms { color: var(--data); }
   .fp { max-width: 100%; font: 400 11px/1.45 var(--f-mono); word-break: break-all; }
 
-  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 20px; }
+  /* The signature line of the form: always in reach, pinned to the bottom of the sheet. */
+  .actions {
+    position: sticky; bottom: 0; z-index: 1;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+    margin-top: 20px; padding: 12px 0 16px;
+    border-top: 2px solid var(--ink); background: var(--paper);
+  }
   .note { color: var(--ink-2); font-size: 14px; }
 </style>

@@ -27,6 +27,13 @@ export function List(): $CancellablePromise<$models.ProfilesView> {
 }
 
 /**
+ * NextFolio issues the work-order number for the run about to start.
+ */
+export function NextFolio(): $CancellablePromise<number> {
+    return $Call.ByID(952439514);
+}
+
+/**
  * Save creates (empty ID) or updates a profile. Empty secret fields keep the stored secrets.
  */
 export function Save(p: pbx$0.Profile, sec: pbx$0.Secrets): $CancellablePromise<pbx$0.Profile> {

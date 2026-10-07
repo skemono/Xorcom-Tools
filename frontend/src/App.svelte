@@ -116,11 +116,16 @@
 <style>
   .desk { display: grid; grid-template-columns: 232px minmax(0, 1fr); height: 100%; }
 
+  /* A tear-off pad, not a dashboard rail: glued binding strip on top, perforated stubs below. */
   .pad {
     display: flex; flex-direction: column; min-height: 0;
-    padding: 24px 0 16px 20px;
+    padding: 20px 0 16px 20px;
+    border-top: 8px solid #17295a;
     background: var(--ink); color: var(--paper);
   }
+  .pad::before { content: ''; display: block; height: 2px; margin: -20px 0 18px -20px; background: rgb(251 252 253 / 0.55); }
+  .forms li { border-bottom: 1px dashed rgb(255 255 255 / 0.28); }
+  .forms li:first-child { border-top: 1px dashed rgb(255 255 255 / 0.28); }
   .pad-name { font: 700 26px/0.95 var(--f-label); letter-spacing: 0.02em; text-transform: uppercase; }
   .pad-sub {
     margin-top: 10px; padding-right: 20px;
@@ -150,8 +155,8 @@
   }
 
   .sheet { overflow-y: auto; min-width: 0; }
-  /* No gap under the block: scrolled content disappears straight under its 2px rule. */
-  .head-wrap { position: sticky; top: 0; z-index: 1; padding: 24px 32px 0; background: var(--paper); }
+  /* Paper margin under the block: scrolled content fades into paper, never against the rule. */
+  .head-wrap { position: sticky; top: 0; z-index: 2; padding: 24px 32px 12px; background: var(--paper); }
   .head {
     display: grid;
     grid-template-columns: minmax(200px, 2fr) minmax(150px, 1.4fr) minmax(110px, 0.8fr) minmax(110px, 0.8fr);
@@ -167,4 +172,5 @@
     background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23233d7a' stroke-width='2'/%3E%3C/svg%3E") right center no-repeat;
     font: 600 17px/1.2 var(--f-data); color: var(--data);
   }
+  .pbx select:disabled { background-image: none; cursor: default; }
 </style>

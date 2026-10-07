@@ -126,7 +126,7 @@ Direction chosen in the impeccable decision round (seed `017e8d93`, assigned can
 
 **Shell**
 - **Form pad (left, ~232 px):** one row per tool: code + name (`F-01 Conexiones`). Footer: version and update state.
-- **Sheet header (top of every form):** ruled boxes **PBX** (active profile picker), **Host**, **Folio** (red run number: a per-session counter that increments on each test or apply, "—" before the first), **Fecha** (today). The active PBX is never off-screen.
+- **Sheet header (top of every form):** ruled boxes **PBX** (active profile picker), **Host**, **Folio** (red work-order number: persisted in profiles.json and incremented on each test or apply, so no folio repeats across sessions; "—" until the first run of the session), **Fecha** (today). The active PBX is never off-screen.
 - **Sheet body:** ruled form fields; one sheet in focus. While a form is running, everything but the active sheet steps back.
 
 **Write flow (for tools that change a PBX; designed now, built with the first such tool)**

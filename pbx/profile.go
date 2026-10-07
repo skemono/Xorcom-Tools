@@ -109,6 +109,7 @@ func Validate(p Profile) error {
 
 type fileData struct {
 	Active   string    `json:"active"`
+	Folio    int       `json:"folio"` // last work-order number issued
 	Profiles []Profile `json:"profiles"`
 }
 
@@ -191,6 +192,12 @@ func (s *Store) Delete(id string) error {
 		}
 	}
 	return s.save()
+}
+
+// NextFolio issues the next work-order number; it keeps counting across sessions so no folio repeats.
+func (s *Store) NextFolio() (int, error) {
+	s.data.Folio++
+	return s.data.Folio, s.save()
 }
 
 func (s *Store) SetActive(id string) error {

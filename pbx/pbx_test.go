@@ -66,6 +66,26 @@ func TestStoreRoundTrip(t *testing.T) {
 	}
 }
 
+func TestStoreFolioPersists(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "profiles.json")
+	s, err := OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for want := 1; want <= 2; want++ {
+		if got, err := s.NextFolio(); err != nil || got != want {
+			t.Fatalf("NextFolio = %d, %v; want %d", got, err, want)
+		}
+	}
+	s2, err := OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := s2.NextFolio(); got != 3 {
+		t.Fatalf("folio must keep counting across sessions, got %d", got)
+	}
+}
+
 func TestStorePutUnknownID(t *testing.T) {
 	s, err := OpenStore(filepath.Join(t.TempDir(), "p.json"))
 	if err != nil {

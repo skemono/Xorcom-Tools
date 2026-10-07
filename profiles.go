@@ -92,6 +92,13 @@ func (s *ProfileService) SetActive(id string) error {
 	return s.store.SetActive(id)
 }
 
+// NextFolio issues the work-order number for the run about to start.
+func (s *ProfileService) NextFolio() (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.store.NextFolio()
+}
+
 // Test checks the saved profile's enabled channels (not unsaved form edits).
 func (s *ProfileService) Test(id string) ([]pbx.ChannelResult, error) {
 	s.mu.Lock()
