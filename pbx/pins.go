@@ -51,6 +51,9 @@ func ParsePinCSV(raw []byte, listID int) (CSVInfo, []PinRow, error) {
 	if bytes.HasPrefix(raw, []byte("PK\x03\x04")) {
 		return info, nil, errors.New("parece un archivo de Excel (.xlsx): ábralo en Excel y guárdelo como CSV")
 	}
+	if bytes.IndexByte(raw, 0) >= 0 { // old .xls (OLE2) or UTF-16 "Texto Unicode": never a CSV of text
+		return info, nil, errors.New("no es un archivo CSV de texto (¿Excel .xls o texto Unicode?): en Excel use Guardar como → CSV")
+	}
 	text, enc := decodeText(raw)
 	info.Encoding = enc
 	sep, name := detectSeparator(text)
@@ -86,8 +89,29 @@ func ParsePinCSV(raw []byte, listID int) (CSVInfo, []PinRow, error) {
 	if len(recs) == 0 {
 		return info, nil, errors.New("el archivo está vacío")
 	}
+	// The file's shape comes from its rows, not its widest row: one stray note in column C must be that
+	// row's error, not turn every row into the 3-column format. A row with only a PIN fits the 2-column shape.
+	multi, three, over := 0, 0, 0
 	for _, rc := range recs {
-		info.Columns = max(info.Columns, len(rc.fields))
+		switch n := len(rc.fields); {
+		case n > 3:
+			over++
+			info.Columns = max(info.Columns, n)
+		case n == 3:
+			three++
+		}
+		if len(rc.fields) >= 2 {
+			multi++
+		}
+	}
+	switch {
+	case multi == 0:
+		info.Columns = 1
+	case over*2 > len(recs):
+	case three*2 > len(recs):
+		info.Columns = 3
+	default:
+		info.Columns = 2
 	}
 	if info.Columns < 2 || info.Columns > 3 {
 		return info, nil, fmt.Errorf("el archivo tiene %d columna(s); se esperan 2 (PIN, descripción) o 3 (pin_list_id, PIN, descripción)", info.Columns)
@@ -111,8 +135,13 @@ func ParsePinCSV(raw []byte, listID int) (CSVInfo, []PinRow, error) {
 	first := map[string]int{} // PIN -> index of its first row
 	for i, rc := range recs {
 		row := PinRow{Line: rc.line, PIN: field(rc.fields, pinCol)}
-		row.Description, row.Filtered = filterDescription(field(rc.fields, pinCol+1))
+		rawDesc := field(rc.fields, pinCol+1)
+		row.Description, row.Filtered = filterDescription(rawDesc)
 		switch {
+		case len(rc.fields) > info.Columns:
+			row.Error = fmt.Sprintf("la fila tiene %d celdas; se esperan %d (¿un separador de más en la descripción?)", len(rc.fields), info.Columns)
+		case strings.ContainsAny(row.PIN+rawDesc, "\r\n"):
+			row.Error = "la celda ocupa varias líneas: ¿comilla sin cerrar en el archivo?"
 		case info.Columns == 3 && field(rc.fields, 0) != strconv.Itoa(listID):
 			row.Error = fmt.Sprintf("pin_list_id «%s» no coincide con la lista elegida (%d)", field(rc.fields, 0), listID)
 		case row.PIN == "":

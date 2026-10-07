@@ -247,12 +247,46 @@ func TestPortalPending(t *testing.T) {
 	}
 }
 
+// An unclosed quote swallows the following lines into one cell; those PINs must never vanish silently.
+func TestParsePinCSVUnclosedQuoteIsAnError(t *testing.T) {
+	_, rows, err := ParsePinCSV([]byte("1111;\"Ana\n2222;Bob\n3333;\"Carl\"\n"), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, r := range rows {
+		if r.Status == PinError && strings.Contains(r.Error, "varias líneas") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("a cell spanning several lines must be a row error, got %+v", rows)
+	}
+}
+
+// One row with an extra cell (a note in column C, an unquoted ; in a description) is that row's
+// error; it must not turn the whole file into the 3-column format.
+func TestParsePinCSVStrayCellIsARowError(t *testing.T) {
+	info, rows, err := ParsePinCSV([]byte("PIN;Descripcion\n4321;Ana\n5555;Bob;nota al margen\n6666;Carla\n7777;\n"), 1)
+	if err != nil || info.Columns != 2 {
+		t.Fatalf("info %+v err %v", info, err)
+	}
+	if rows[0].Status != "" || rows[2].Status != "" || rows[3].Status != "" {
+		t.Errorf("the other rows are unaffected: %+v", rows)
+	}
+	if rows[1].Status != PinError || !strings.Contains(rows[1].Error, "3 celdas") {
+		t.Errorf("the stray row names its problem: %+v", rows[1])
+	}
+}
+
 func TestParsePinCSVFileErrors(t *testing.T) {
 	cases := map[string][]byte{
 		"xlsx":       []byte("PK\x03\x04\x14\x00rest-of-zip"),
 		"empty":      []byte("\r\n\r\n"),
 		"one column": []byte("PIN\n4321\n5555\n"),
 		"four cols":  []byte("a;b;c;d\n1;2;3;4\n"),
+		"old xls":    []byte("\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1\x00\x00\x00\x00rest-of-ole2"),
+		"utf-16":     []byte("\xFF\xFEP\x00I\x00N\x00;\x00D\x00\n\x004\x003\x002\x001\x00;\x00A\x00n\x00a\x00\n\x00"),
 	}
 	for name, raw := range cases {
 		if _, _, err := ParsePinCSV(raw, 1); err == nil {
