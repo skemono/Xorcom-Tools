@@ -378,7 +378,7 @@
   /* Aplicar's progress: spot ink filling along the strip's bottom rule. */
   .bar { position: absolute; left: 0; bottom: 0; width: 100%; height: 4px; border: 0; appearance: none; background: transparent; }
   .bar::-webkit-progress-bar { background: transparent; }
-  .bar::-webkit-progress-value { background: var(--ink); transition: width 300ms var(--ease-out); }
+  .bar::-webkit-progress-value { background: var(--ink); }
   /* Fixed layout: columns never reflow when the filter or the stamps change a row. */
   .lines { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; }
   .c-num { width: 72px; }
