@@ -3,6 +3,8 @@ package pbx
 import (
 	"bufio"
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"io"
@@ -16,6 +18,7 @@ import (
 	"time"
 
 	"github.com/zalando/go-keyring"
+	"golang.org/x/crypto/ssh"
 )
 
 func TestStoreRoundTrip(t *testing.T) {
@@ -282,5 +285,27 @@ func TestAMILogin(t *testing.T) {
 	// Review focus 2: CR/LF must be rejected before any dial (the address is unroutable on purpose).
 	if _, err := AMILogin(ctx, "192.0.2.1:5038", "admin", "x\r\nAction: Originate"); err == nil || !strings.Contains(err.Error(), "saltos de línea") {
 		t.Fatalf("want CR/LF rejection, got %v", err)
+	}
+}
+
+func TestHostKeyCheck(t *testing.T) {
+	pub, _, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := ssh.NewPublicKey(pub)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fp := ssh.FingerprintSHA256(key)
+	var ue *UntrustedError
+	if err := HostKeyCheck("")("pbx:22", nil, key); !errors.As(err, &ue) || ue.Fingerprint != fp || ue.Changed {
+		t.Fatalf("unpinned: want UntrustedError{%s}, got %v", fp, err)
+	}
+	if err := HostKeyCheck("SHA256:something-else")("pbx:22", nil, key); !errors.As(err, &ue) || !ue.Changed {
+		t.Fatalf("different pin: want Changed, got %v", err)
+	}
+	if err := HostKeyCheck(fp)("pbx:22", nil, key); err != nil {
+		t.Fatalf("pinned key must pass: %v", err)
 	}
 }
