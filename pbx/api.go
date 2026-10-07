@@ -14,10 +14,10 @@ import (
 // own JS does (POST /login, AJAX headers, form with baseurl) and requires state "success" plus a
 // "sid" session cookie. Without one it only proves the base URL answers. HTTPS goes through PinnedTLS.
 func APICheck(ctx context.Context, p Profile, password string) (string, error) {
-	base := strings.TrimRight(p.API.BaseURL, "/")
+	base := strings.TrimRight(p.APIBase(), "/")
 	u, err := url.Parse(base)
 	if err != nil || u.Host == "" {
-		return "", fmt.Errorf("URL de API inválida: %q", p.API.BaseURL)
+		return "", fmt.Errorf("URL de API inválida: %q", base)
 	}
 	jar, _ := cookiejar.New(nil)
 	client := &http.Client{Jar: jar, Transport: &http.Transport{TLSClientConfig: PinnedTLS(u.Hostname(), p.API.CertSHA256)}}

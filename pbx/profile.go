@@ -47,8 +47,8 @@ type Profile struct {
 	AMI  AMIConfig `json:"ami"`
 }
 
-// Normalize trims text fields and fills default ports and the API base URL.
-// CompletePBX 5 serves its portal API on plain HTTP port 80, hence the http:// default.
+// Normalize trims text fields and fills default ports. The API base URL stays empty unless the
+// user typed one, so APIBase keeps following the host when it is corrected.
 func (p *Profile) Normalize() {
 	p.Name, p.Host = strings.TrimSpace(p.Name), strings.TrimSpace(p.Host)
 	p.API.BaseURL = strings.TrimRight(strings.TrimSpace(p.API.BaseURL), "/")
@@ -58,13 +58,19 @@ func (p *Profile) Normalize() {
 	if p.AMI.Port == 0 {
 		p.AMI.Port = 5038
 	}
-	if p.API.BaseURL == "" && p.Host != "" {
-		host := p.Host
-		if strings.Contains(host, ":") { // bare IPv6
-			host = "[" + host + "]"
-		}
-		p.API.BaseURL = "http://" + host
+}
+
+// APIBase is the portal URL to use: the typed base URL, or http://<host>
+// (CompletePBX 5 serves its portal API on plain HTTP port 80).
+func (p Profile) APIBase() string {
+	if p.API.BaseURL != "" {
+		return p.API.BaseURL
 	}
+	host := p.Host
+	if strings.Contains(host, ":") { // bare IPv6
+		host = "[" + host + "]"
+	}
+	return "http://" + host
 }
 
 // Validate rejects profiles the channels cannot use. Messages are shown to the user.
@@ -80,7 +86,7 @@ func Validate(p Profile) error {
 		return errors.New("escriba solo el nombre o la IP del host, sin http:// ni puerto (el puerto va en cada canal)")
 	}
 	if p.API.Enabled {
-		u, err := url.Parse(p.API.BaseURL)
+		u, err := url.Parse(p.APIBase())
 		if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
 			return errors.New("la URL base de la API debe empezar con http:// o https://")
 		}

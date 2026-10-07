@@ -33,7 +33,7 @@ func TestStoreRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if a.ID == "" || a.Name != "Hospital Juan José Arévalo" || a.SSH.Port != 22 || a.AMI.Port != 5038 || a.API.BaseURL != "http://10.0.0.1" {
+	if a.ID == "" || a.Name != "Hospital Juan José Arévalo" || a.SSH.Port != 22 || a.AMI.Port != 5038 || a.APIBase() != "http://10.0.0.1" {
 		t.Fatalf("normalize not applied: %+v", a)
 	}
 	b, err := s.Put(Profile{Name: "B", Host: "10.0.0.2"})
@@ -63,6 +63,37 @@ func TestStoreRoundTrip(t *testing.T) {
 	}
 	if left, _ := filepath.Glob(filepath.Join(filepath.Dir(path), "*.tmp")); len(left) != 0 {
 		t.Fatalf("temp files left behind: %v", left)
+	}
+}
+
+// Final review Important 1: a host correction must move the API target too, or the portal
+// password keeps going (in cleartext) to whatever answers at the old address.
+func TestAPIBaseFollowsHostEdit(t *testing.T) {
+	s, err := OpenStore(filepath.Join(t.TempDir(), "p.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := s.Put(Profile{Name: "A", Host: "10.20.1.5", API: APIConfig{Enabled: true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.API.BaseURL != "" {
+		t.Fatalf("the derived default must not be persisted, got %q", p.API.BaseURL)
+	}
+	p.Host = "10.20.1.15"
+	if p, err = s.Put(p); err != nil {
+		t.Fatal(err)
+	}
+	if got := p.APIBase(); got != "http://10.20.1.15" {
+		t.Fatalf("API target must follow the host edit, got %q", got)
+	}
+	custom := Profile{Host: "10.20.1.5", API: APIConfig{BaseURL: "https://pbx.local:8443/"}}
+	custom.Normalize()
+	if got := custom.APIBase(); got != "https://pbx.local:8443" {
+		t.Fatalf("a typed base URL wins (trailing slash trimmed), got %q", got)
+	}
+	if got := (Profile{Host: "fe80::1"}).APIBase(); got != "http://[fe80::1]" {
+		t.Fatalf("bare IPv6 must be bracketed, got %q", got)
 	}
 }
 
