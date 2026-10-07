@@ -157,7 +157,7 @@ func OpenStore(path string) (*Store, error) {
 }
 
 func (s *Store) Profiles() []Profile { return append([]Profile(nil), s.data.Profiles...) }
-func (s *Store) ActiveID() string     { return s.data.Active }
+func (s *Store) ActiveID() string    { return s.data.Active }
 
 func (s *Store) Get(id string) (Profile, bool) {
 	if i := s.index(id); i >= 0 {

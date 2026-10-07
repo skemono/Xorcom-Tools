@@ -141,3 +141,117 @@ func TestMySQLRunsThroughStdin(t *testing.T) {
 		t.Fatalf("SQL must go on stdin with the fixed command; cmd=%q sql=%q", gotCmd, gotSQL)
 	}
 }
+
+func TestParsePinCSVExcelQuirks(t *testing.T) {
+	// Windows-1252 bytes for "José Peña" (0xE9, 0xF1), ; separator, CRLF, trailing empty cell, quoted separator, blank line.
+	raw := []byte("PIN;Descripcion\r\n4321;Jos\xe9 Pe\xf1a;\r\n\r\n5*55;\"Perez; Juan\"\r\n0123;\r\n")
+	info, rows, err := ParsePinCSV(raw, 7)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Separator != ";" || info.Encoding != "Windows-1252" || !info.Header || info.Columns != 2 || info.Rows != 3 {
+		t.Fatalf("info %+v", info)
+	}
+	want := []PinRow{
+		{Line: 2, PIN: "4321", Description: "Jose Pena", Filtered: true},
+		{Line: 4, PIN: "5*55", Description: "Perez; Juan"},
+		{Line: 5, PIN: "0123", Description: ""},
+	}
+	for i, w := range want {
+		if rows[i] != w {
+			t.Errorf("row %d = %+v, want %+v", i, rows[i], w)
+		}
+	}
+}
+
+func TestParsePinCSVThreeColumnsAndUTF8(t *testing.T) {
+	raw := []byte("\xef\xbb\xbfpin_list_id,password,description\n7,4321,Dr. O\u2019Brien \u2013 Rayos X\n8,5555,Otro\n")
+	info, rows, err := ParsePinCSV(raw, 7)
+	if err != nil || info.Encoding != "UTF-8" || info.Separator != "," || info.Columns != 3 {
+		t.Fatalf("info %+v err %v", info, err)
+	}
+	if rows[0].Description != "Dr. O'Brien - Rayos X" || rows[0].Status != "" {
+		t.Errorf("typographic quote/dash must become ASCII: %+v", rows[0])
+	}
+	if rows[1].Status != PinError || !strings.Contains(rows[1].Error, "no coincide") {
+		t.Errorf("a pin_list_id of another list must be a row error: %+v", rows[1])
+	}
+}
+
+func TestValidatePins(t *testing.T) {
+	raw := []byte("12a4;Primera fila invalida\n*99;Asterisco\n4321;Uno\n4321;Repetido\n;Sin PIN\n777;Linea\u0001control\n888;Stra\u00dfe\n999;Mar\u00eca \u00c7elik\n")
+	_, rows, err := ParsePinCSV(raw, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rows[0].Status != PinError {
+		t.Errorf("a first row with digits is data, so '12a4' must be an error, not a skipped header: %+v", rows[0])
+	}
+	if rows[1].Status != "" || rows[1].PIN != "*99" {
+		t.Errorf("'*99' is a valid PIN kept as text: %+v", rows[1])
+	}
+	if rows[2].Status != PinError || rows[3].Status != PinError || !strings.Contains(rows[3].Error, "repetido") {
+		t.Errorf("both rows of a repeated PIN must be errors: %+v %+v", rows[2], rows[3])
+	}
+	if rows[4].Status != PinError || rows[5].Status != PinError || rows[6].Status != PinError || !strings.Contains(rows[6].Error, "ß") {
+		t.Errorf("missing PIN, control chars and unmapped non-ASCII are errors: %+v %+v %+v", rows[4], rows[5], rows[6])
+	}
+	if rows[7].Status != "" || rows[7].Description != "Maria Celik" || !rows[7].Filtered {
+		t.Errorf("grave accents and ç are filtered like the rest: %+v", rows[7])
+	}
+}
+
+func TestParsePinCSVFileErrors(t *testing.T) {
+	cases := map[string][]byte{
+		"xlsx":       []byte("PK\x03\x04\x14\x00rest-of-zip"),
+		"empty":      []byte("\r\n\r\n"),
+		"one column": []byte("PIN\n4321\n5555\n"),
+		"four cols":  []byte("a;b;c;d\n1;2;3;4\n"),
+	}
+	for name, raw := range cases {
+		if _, _, err := ParsePinCSV(raw, 1); err == nil {
+			t.Errorf("%s: want a file-level error", name)
+		}
+	}
+	big := []byte(strings.Repeat("1;x\n", maxPinRows+1))
+	if _, _, err := ParsePinCSV(big, 1); err == nil {
+		t.Error("more than maxPinRows rows must be refused")
+	}
+}
+
+func TestPlanPins(t *testing.T) {
+	rows := []PinRow{
+		{Line: 1, PIN: "1", Description: "a"},
+		{Line: 2, PIN: "2", Description: "b"},
+		{Line: 3, PIN: "x", Status: PinError},
+		{Line: 4, PIN: "4"}, // no description
+	}
+	got := PlanPins(rows, map[string]string{"2": "ya"}, false)
+	if got[0].Status != PinNew || got[1].Status != PinExists || got[2].Status != PinError || got[3].Status != PinNoDesc {
+		t.Fatalf("plan without empty descriptions: %+v", got)
+	}
+	if got := PlanPins(rows, nil, true); got[3].Status != PinNew {
+		t.Fatalf("with the toggle on, an empty description is loaded: %+v", got[3])
+	}
+}
+
+func TestInsertSQLEscapes(t *testing.T) {
+	sql := InsertSQL(7, []PinRow{
+		{PIN: "4321", Description: `O'Brien \ Lab`, Status: PinNew},
+		{PIN: "5555", Status: PinNew},
+		{PIN: "6666", Description: "existe", Status: PinExists},
+	})
+	for _, want := range []string{
+		"START TRANSACTION;",
+		`SELECT 7, '4321', 'O''Brien \\ Lab' FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM ombu_pin_list_entries WHERE pin_list_id = 7 AND password = '4321');`,
+		"SELECT 7, '5555', NULL FROM DUAL",
+		"COMMIT;",
+	} {
+		if !strings.Contains(sql, want) {
+			t.Errorf("SQL missing %q:\n%s", want, sql)
+		}
+	}
+	if strings.Contains(sql, "6666") {
+		t.Error("existing PINs must not be inserted")
+	}
+}
