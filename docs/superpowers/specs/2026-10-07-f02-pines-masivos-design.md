@@ -74,7 +74,7 @@ Columns are positional; header text is not interpreted. The sheet shows this for
 - **Encoding:** UTF-8 BOM → UTF-8 (BOM stripped); valid UTF-8 → as is; otherwise Windows-1252 (Excel's "CSV" on Spanish Windows), so "José Pérez" survives.
 - **Separator:** the first non-empty line decides: `;`, `,` or tab, whichever occurs most outside quotes. Parsed with `encoding/csv` (quoted fields with commas are fine). Blank lines are skipped.
 - **Columns:** 2 (`PIN, descripción`) or 3 as in the guide (`pin_list_id, PIN, descripción`). Any other count is a file-level error. With 3 columns, a `pin_list_id` different from the chosen list is a row error.
-- **Header:** the first row is a header when its PIN cell is not all digits.
+- **Header:** the first row is a header when its PIN cell contains no digit at all ("PIN", "password"); a first row like "12a4" is data and shows as an error, never silently skipped. Trailing empty cells (Excel's "4321;Juan;") are ignored when counting columns.
 - **Size guard:** files over 1 MB or 10 000 rows are refused (a hospital list is hundreds).
 
 ## 5. Validation (per row, all reported, nothing silently dropped)
