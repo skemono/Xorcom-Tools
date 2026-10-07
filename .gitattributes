@@ -1,0 +1,11 @@
+* text=auto eol=lf
+*.bat eol=crlf
+*.png binary
+*.ico binary
+*.icns binary
+*.car binary
+*.jar binary
+*.ttf binary
+*.woff binary
+*.woff2 binary
+*.exe binary
