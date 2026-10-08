@@ -2,6 +2,7 @@
   import { tick, untrack } from 'svelte'
   import { ProfileService } from '../../bindings/github.com/skemono/Xorcom-Tools'
   import type { ChannelResult, Profile, Secrets } from '../../bindings/github.com/skemono/Xorcom-Tools/pbx'
+  import Icon from '../Icon.svelte'
   import { app, reload, setActive, errText } from '../state.svelte'
 
   const blank = (): Profile => ({
@@ -67,13 +68,12 @@
     app.busy = true
     results = []
     try {
-      app.folio = await ProfileService.NextFolio()
       const res = (await ProfileService.Test(id)) ?? []
       if (form.id !== id) return // the sheet changed under the test: never stamp A's results on B
       results = res
       await tick()
       // Let the technician watch the stamps land without scrolling by hand.
-      document.querySelector('.outcome')?.scrollIntoView({ block: 'nearest' })
+      document.querySelector('.outcomes')?.scrollIntoView({ block: 'center' })
     } catch (e) {
       note = errText(e)
     } finally {
@@ -118,7 +118,7 @@
 {#snippet outcome(ch: string, title: string, enabled: boolean, tilt: string)}
   {@const r = resultFor(ch)}
   <div class="outcome" class:fail={r && !r.ok && !r.skipped} aria-live="polite">
-    <span class="lbl">{title}</span>
+    <span class="out-name">{title}</span>
     {#if !enabled}
       <span class="pending">Deshabilitado</span>
     {:else if app.busy && !r}
@@ -142,140 +142,141 @@
 {/snippet}
 
 <div class="page">
-  <div class="title"><span class="code">F-01</span><h1>Conexiones</h1></div>
-  <p class="instr">Registre cada PBX y pruebe sus tres canales; las contraseñas quedan cifradas en Windows.</p>
+  <h1>Conexiones</h1>
+  <p class="lead">Registre cada PBX y pruebe sus tres canales. Las contraseñas quedan cifradas en Windows.</p>
 
   {#if app.recovered}
-    <p class="notice">
-      El archivo de perfiles estaba dañado. Se guardó una copia en <code>{app.recovered}</code> y se empezó en blanco.
+    <p class="notice"><Icon name="alert" />
+      <span>El archivo de perfiles estaba dañado. Se guardó una copia en <code>{app.recovered}</code> y se empezó en blanco.</span>
     </p>
   {/if}
 
-  <h2 class="lbl section">Perfiles registrados</h2>
-  <table class="ledger">
-    <thead>
-      <tr>
-        <th class="cell-state"><span class="sr">Activa</span></th>
-        <th class="lbl">Nº</th>
-        <th class="lbl">Nombre</th>
-        <th class="lbl">Host</th>
-        <th><span class="sr">Acciones</span></th>
-      </tr>
-    </thead>
-    <tbody>
-      {#each app.profiles as v, i (v.profile.id)}
-        <tr class:editing={v.profile.id === form.id}>
-          <td class="cell-state">
-            <span class="mark" class:filled={v.profile.id === app.active} title={v.profile.id === app.active ? 'PBX activa' : ''}></span>
-          </td>
-          <td class="num">{String(i + 1).padStart(2, '0')}</td>
-          <td><button class="link" onclick={() => edit(v.profile.id)} disabled={app.busy}>{v.profile.name}</button></td>
-          <td>{v.profile.host}</td>
-          <td class="row-act">
-            {#if v.profile.id !== app.active}
-              <button class="link" onclick={() => setActive(v.profile.id)} disabled={app.busy}>Usar</button>
-            {/if}
-          </td>
-        </tr>
+  <section class="registry">
+    <h2 class="reg-head">PBX registradas</h2>
+    <ul class="ledger">
+      {#each app.profiles as v (v.profile.id)}
+        <li class:editing={v.profile.id === form.id}>
+          <button class="name" onclick={() => edit(v.profile.id)} disabled={app.busy}>{v.profile.name}</button>
+          <code class="host">{v.profile.host}</code>
+          {#if v.profile.id === app.active}
+            <span class="active-pill"><Icon name="check" size={16} />Activa</span>
+          {:else}
+            <button class="btn small" onclick={() => setActive(v.profile.id)} disabled={app.busy}>Usar</button>
+          {/if}
+        </li>
       {:else}
-        <tr><td colspan="5" class="empty">Sin perfiles todavía. Llene el formulario de abajo para registrar la primera PBX.</td></tr>
+        <li class="empty">Sin perfiles todavía. Complete los pasos de abajo para registrar la primera PBX.</li>
       {/each}
-    </tbody>
-  </table>
+    </ul>
+  </section>
 
-  <h2 class="lbl section">{form.id ? 'Datos del perfil' : 'Nuevo perfil'}</h2>
-  <form id="perfil" class="sheetform" onsubmit={(e) => { e.preventDefault(); saveAndTest() }}>
-    <label class="field half">
-      <span class="lbl">Nombre</span>
-      <input bind:value={form.name} required placeholder="Hospital General" />
-    </label>
-    <label class="field half">
-      <span class="lbl">Host (nombre o IP)</span>
-      <input bind:value={form.host} required placeholder="10.20.1.5" spellcheck="false" />
-    </label>
-
-    <fieldset class="channel" class:off={!form.api.enabled}>
-      <legend class="chan-head">
-        <span class="lbl">Canal API (portal)</span>
-        <label class="check"><input type="checkbox" bind:checked={form.api.enabled} /> Habilitado</label>
-      </legend>
-      <label class="field">
-        <span class="lbl">URL base</span>
-        <input bind:value={form.api.baseURL} placeholder={`http://${form.host || 'host'}`} disabled={!form.api.enabled} spellcheck="false" />
-      </label>
-      <label class="field">
-        <span class="lbl">Usuario</span>
-        <input bind:value={form.api.user} disabled={!form.api.enabled} />
-      </label>
-      <label class="field">
-        <span class="lbl">Contraseña</span>
-        <input type="password" bind:value={secrets.api} placeholder={has?.api ? 'guardada' : ''} disabled={!form.api.enabled} autocomplete="off" />
-      </label>
-      <p class="hint">El portal usa HTTP sin cifrar: la contraseña viaja en claro.</p>
-    </fieldset>
-
-    <fieldset class="channel" class:off={!form.ssh.enabled}>
-      <legend class="chan-head">
-        <span class="lbl">Canal SSH</span>
-        <label class="check"><input type="checkbox" bind:checked={form.ssh.enabled} /> Habilitado</label>
-      </legend>
-      <div class="pair">
+  <form id="perfil" class="steps" onsubmit={(e) => { e.preventDefault(); saveAndTest() }}>
+    <section class="step">
+      <h2 class="step-head"><span class="disc">1</span>{form.id ? 'Datos de la PBX' : 'Nueva PBX'}</h2>
+      <div class="pair-wide">
         <label class="field">
-          <span class="lbl">Puerto</span>
-          <input type="number" min="1" max="65535" bind:value={form.ssh.port} disabled={!form.ssh.enabled} />
+          <span class="field-name">Nombre</span>
+          <input class="control" bind:value={form.name} required placeholder="Hospital General" />
         </label>
         <label class="field">
-          <span class="lbl">Usuario</span>
-          <input bind:value={form.ssh.user} disabled={!form.ssh.enabled} />
+          <span class="field-name">Host (nombre o IP)</span>
+          <input class="control" bind:value={form.host} required placeholder="10.20.1.5" spellcheck="false" />
         </label>
       </div>
-      <label class="field">
-        <span class="lbl">Contraseña</span>
-        <input type="password" bind:value={secrets.ssh} placeholder={has?.ssh ? 'guardada' : ''} disabled={!form.ssh.enabled} autocomplete="off" />
-      </label>
-      <label class="field">
-        <span class="lbl">Llave privada (ruta, opcional)</span>
-        <input bind:value={form.ssh.keyPath} placeholder="C:\Users\…\.ssh\id_ed25519" disabled={!form.ssh.enabled} spellcheck="false" />
-      </label>
-      <label class="field">
-        <span class="lbl">Frase de la llave</span>
-        <input type="password" bind:value={secrets.sshKey} placeholder={has?.sshKey ? 'guardada' : ''} disabled={!form.ssh.enabled} autocomplete="off" />
-      </label>
-    </fieldset>
+    </section>
 
-    <fieldset class="channel" class:off={!form.ami.enabled}>
-      <legend class="chan-head">
-        <span class="lbl">Canal AMI</span>
-        <label class="check"><input type="checkbox" bind:checked={form.ami.enabled} /> Habilitado</label>
-      </legend>
-      <div class="pair">
-        <label class="field">
-          <span class="lbl">Puerto</span>
-          <input type="number" min="1" max="65535" bind:value={form.ami.port} disabled={!form.ami.enabled} />
-        </label>
-        <label class="field">
-          <span class="lbl">Usuario</span>
-          <input bind:value={form.ami.user} disabled={!form.ami.enabled} />
-        </label>
+    <section class="step">
+      <h2 class="step-head"><span class="disc">2</span>Canales de acceso<span class="aside">Habilite los que use esta PBX</span></h2>
+      <div class="chan-grid">
+        <fieldset class="channel" class:off={!form.api.enabled}>
+          <legend class="chan-head">
+            <span>API (portal)</span>
+            <label class="check"><input type="checkbox" bind:checked={form.api.enabled} /> Habilitado</label>
+          </legend>
+          <label class="field">
+            <span class="field-name">URL base</span>
+            <input class="control" bind:value={form.api.baseURL} placeholder={`http://${form.host || 'host'}`} disabled={!form.api.enabled} spellcheck="false" />
+          </label>
+          <label class="field">
+            <span class="field-name">Usuario</span>
+            <input class="control" bind:value={form.api.user} disabled={!form.api.enabled} />
+          </label>
+          <label class="field">
+            <span class="field-name">Contraseña</span>
+            <input class="control" type="password" bind:value={secrets.api} placeholder={has?.api ? 'guardada' : ''} disabled={!form.api.enabled} autocomplete="off" />
+          </label>
+          <p class="hint">El portal usa HTTP sin cifrar: la contraseña viaja en claro.</p>
+        </fieldset>
+
+        <fieldset class="channel" class:off={!form.ssh.enabled}>
+          <legend class="chan-head">
+            <span>SSH</span>
+            <label class="check"><input type="checkbox" bind:checked={form.ssh.enabled} /> Habilitado</label>
+          </legend>
+          <div class="pair">
+            <label class="field">
+              <span class="field-name">Puerto</span>
+              <input class="control" type="number" min="1" max="65535" bind:value={form.ssh.port} disabled={!form.ssh.enabled} />
+            </label>
+            <label class="field">
+              <span class="field-name">Usuario</span>
+              <input class="control" bind:value={form.ssh.user} disabled={!form.ssh.enabled} />
+            </label>
+          </div>
+          <label class="field">
+            <span class="field-name">Contraseña</span>
+            <input class="control" type="password" bind:value={secrets.ssh} placeholder={has?.ssh ? 'guardada' : ''} disabled={!form.ssh.enabled} autocomplete="off" />
+          </label>
+          <label class="field">
+            <span class="field-name">Llave privada (ruta, opcional)</span>
+            <input class="control mono" bind:value={form.ssh.keyPath} placeholder="C:\Users\…\.ssh\id_ed25519" disabled={!form.ssh.enabled} spellcheck="false" />
+          </label>
+          <label class="field">
+            <span class="field-name">Frase de la llave</span>
+            <input class="control" type="password" bind:value={secrets.sshKey} placeholder={has?.sshKey ? 'guardada' : ''} disabled={!form.ssh.enabled} autocomplete="off" />
+          </label>
+        </fieldset>
+
+        <fieldset class="channel" class:off={!form.ami.enabled}>
+          <legend class="chan-head">
+            <span>AMI</span>
+            <label class="check"><input type="checkbox" bind:checked={form.ami.enabled} /> Habilitado</label>
+          </legend>
+          <div class="pair">
+            <label class="field">
+              <span class="field-name">Puerto</span>
+              <input class="control" type="number" min="1" max="65535" bind:value={form.ami.port} disabled={!form.ami.enabled} />
+            </label>
+            <label class="field">
+              <span class="field-name">Usuario</span>
+              <input class="control" bind:value={form.ami.user} disabled={!form.ami.enabled} />
+            </label>
+          </div>
+          <label class="field">
+            <span class="field-name">Secreto</span>
+            <input class="control" type="password" bind:value={secrets.ami} placeholder={has?.ami ? 'guardado' : ''} disabled={!form.ami.enabled} autocomplete="off" />
+          </label>
+          <p class="hint">AMI viaja sin cifrar: en la PBX limite el acceso (permit/deny) a la red de los técnicos.</p>
+        </fieldset>
       </div>
-      <label class="field">
-        <span class="lbl">Secreto</span>
-        <input type="password" bind:value={secrets.ami} placeholder={has?.ami ? 'guardado' : ''} disabled={!form.ami.enabled} autocomplete="off" />
-      </label>
-      <p class="hint">AMI viaja sin cifrar: en la PBX limite el acceso (permit/deny) a la red de los técnicos.</p>
-    </fieldset>
+    </section>
 
-    <!-- Three separate impressions, never one stamp pasted thrice. -->
-    {@render outcome('api', 'Prueba API', form.api.enabled, '-3deg')}
-    {@render outcome('ssh', 'Prueba SSH', form.ssh.enabled, '-1.5deg')}
-    {@render outcome('ami', 'Prueba AMI', form.ami.enabled, '-4.5deg')}
+    <section class="step">
+      <h2 class="step-head"><span class="disc">3</span>Prueba de conexión<span class="aside">«Guardar y probar» la ejecuta</span></h2>
+      <!-- Three separate impressions, never one stamp pasted thrice. -->
+      <div class="outcomes">
+        {@render outcome('api', 'API', form.api.enabled, '-3deg')}
+        {@render outcome('ssh', 'SSH', form.ssh.enabled, '-1.5deg')}
+        {@render outcome('ami', 'AMI', form.ami.enabled, '-4.5deg')}
+      </div>
+    </section>
   </form>
 
   <div class="actions">
-    <button class="btn primary" type="submit" form="perfil" disabled={app.busy}>Guardar y probar</button>
+    <button class="btn primary" type="submit" form="perfil" disabled={app.busy}><span class="disc">3</span>Guardar y probar</button>
     <button class="btn" type="button" onclick={save} disabled={app.busy}>Guardar</button>
     {#if form.id}
-      <button class="btn" type="button" onclick={fresh} disabled={app.busy}>Nuevo perfil</button>
+      <button class="btn" type="button" onclick={fresh} disabled={app.busy}>Nueva PBX</button>
       <!-- Two-step: the second click of a double-click (detail 2) must never confirm. -->
       <button class="btn danger" type="button" onclick={(e) => e.detail <= 1 && remove()} disabled={app.busy}>
         {confirmDelete ? 'Confirmar: eliminar' : 'Eliminar'}
@@ -286,85 +287,51 @@
 </div>
 
 <style>
-  .page { padding: 14px 32px 0; }
-  .title { display: flex; align-items: center; gap: 14px; }
-  .title .code {
-    padding: 5px 8px 4px; border: 2px solid var(--ink);
-    font: 700 15px/1 var(--f-label); letter-spacing: 0.06em; color: var(--ink);
-  }
-  h1 { font: 700 30px/1 var(--f-label); letter-spacing: 0.03em; text-transform: uppercase; color: var(--ink); }
-  .instr { max-width: 72ch; margin: 6px 0 12px; color: var(--ink-2); font-size: 14px; }
-  .notice { margin-bottom: 24px; padding: 10px 14px; border: 1px solid var(--fail); background: var(--pink); }
-  .notice code { font: 12px var(--f-mono); }
-  .section { display: block; margin-bottom: 6px; }
-  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .page { padding: 22px 28px 0; }
+  .notice { margin-bottom: 18px; }
 
-  .ledger { width: 100%; margin-bottom: 20px; border-collapse: collapse; border-block: 2px solid var(--ink); }
-  .ledger th { padding: 6px 10px 5px; border-bottom: 1px solid var(--ink); text-align: left; }
-  .ledger td { padding: 9px 10px; border-bottom: 1px solid var(--hair); }
-  .ledger tbody tr:last-child td { border-bottom: 0; }
-  .ledger tr.editing td { background: var(--tint); }
-  .cell-state { width: 34px; }
-  .num { width: 48px; color: var(--ink-2); font-weight: 500; }
-  .row-act { width: 80px; text-align: right; }
-  .empty { padding: 10px; color: var(--ink-2); }
+  /* The registry: every PBX on file, the active one marked. */
+  .registry { margin-bottom: 18px; }
+  .reg-head { margin-bottom: 8px; font: 800 16px/1.2 var(--f); }
+  .ledger { margin: 0; padding: 0; list-style: none; border: 2px solid var(--rule); border-radius: 12px; background: var(--panel); overflow: hidden; }
+  .ledger li { display: flex; align-items: center; gap: 16px; min-height: 52px; padding: 6px 12px 6px 16px; }
+  .ledger li + li { border-top: 1px solid var(--rule); }
+  .ledger li.editing { background: var(--tint); }
+  .name {
+    flex: 1; min-width: 0; padding: 0; border: 0; background: none; cursor: pointer; text-align: left;
+    color: var(--sign); font: 700 16px/1.3 var(--f);
+    text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 3px;
+  }
+  .name:disabled { cursor: default; opacity: 0.6; }
+  .host { width: 180px; color: var(--mute); font-size: 13px; }
+  .active-pill { display: inline-flex; align-items: center; gap: 4px; height: 36px; padding: 0 12px; border-radius: 99px; background: var(--sign); color: var(--on-sign); font-weight: 700; font-size: 14px; }
+  .empty { color: var(--mute); }
 
-  .sheetform {
-    display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
-    border-top: 2px solid var(--ink); border-left: 1px solid var(--ink);
-  }
-  .field {
-    display: grid; gap: 4px; min-width: 0; padding: 6px 12px 7px;
-    border-right: 1px solid var(--ink); border-bottom: 1px solid var(--ink);
-  }
-  .field.half { grid-column: span 3; }
-  .field input {
-    width: 100%; min-width: 0; padding: 0; border: 0; background: transparent;
-    font: 500 16px/1.3 var(--f-data); color: var(--data); outline-offset: 4px;
-  }
-  .field input::placeholder { color: var(--ink-2); font-style: italic; font-weight: 400; }
-  .field input:disabled { color: var(--ink-2); }
+  .steps { display: grid; gap: 14px; }
+  .pair-wide { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 
-  .channel {
-    grid-column: span 2; display: grid; align-content: start; min-width: 0;
-    margin: 0; padding: 0; border: 0;
-    border-right: 1px solid var(--ink); border-bottom: 1px solid var(--ink);
-  }
-  .channel .field { border-right: 0; }
-  /* The fieldset draws the column's bottom rule; a last field's own rule would double it. */
-  .channel > :last-child { border-bottom: 0; }
-  .channel.off .field { background: var(--tint); }
+  /* Three channel columns split by 2px rules: one panel, no boxes inside it. */
+  .chan-grid, .outcomes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .channel { display: grid; align-content: start; gap: 12px; min-width: 0; margin: 0; padding: 0 16px; border: 0; border-left: 2px solid var(--rule); }
+  .channel:first-child, .outcome:first-child { padding-left: 0; border-left: 0; }
+  .channel:last-child, .outcome:last-child { padding-right: 0; }
   .chan-head {
-    float: left; width: 100%;
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 6px 12px; border-bottom: 1px solid var(--ink); background: var(--tint);
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    width: 100%; padding: 0 0 8px; border-bottom: 2px solid var(--rule);
+    font: 800 15px/1.2 var(--f);
   }
-  .chan-head + * { clear: both; }
-  .check { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font-size: 13px; }
-  .check input { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); }
-  .pair { display: grid; grid-template-columns: 96px minmax(0, 1fr); }
-  .pair .field:first-child { border-right: 1px solid var(--ink); }
-  .hint { padding: 8px 12px; color: var(--ink-2); font-size: 12px; line-height: 1.35; }
+  .chan-head .check { font-weight: 500; }
+  .channel.off .chan-head > span { color: var(--mute); }
+  .pair { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 10px; }
 
-  .outcome {
-    grid-column: span 2; display: grid; align-content: start; justify-items: start; gap: 8px;
-    min-height: 96px; padding: 8px 12px 14px;
-    border-right: 1px solid var(--ink); border-bottom: 2px solid var(--ink);
-  }
-  .outcome.fail { background: var(--pink); }
-  .pending { color: var(--ink-2); font: 600 12px/1 var(--f-label); letter-spacing: 0.09em; text-transform: uppercase; }
+  .outcome { display: grid; align-content: start; justify-items: start; gap: 10px; min-width: 0; min-height: 96px; padding: 2px 16px; border-left: 2px solid var(--rule); }
+  .outcome.fail .out-name { color: var(--fail); }
+  .out-name { font: 800 15px/1.2 var(--f); }
+  .pending { color: var(--mute); font-size: 14px; }
   .stamp-row { display: flex; align-items: center; gap: 12px; }
-  .msg { font-size: 13px; line-height: 1.35; }
-  .ms { color: var(--ink-2); font: 600 11px/1 var(--f-label); letter-spacing: 0.09em; white-space: nowrap; }
-  .outcome.fail .ms { color: var(--data); }
-  .fp { max-width: 100%; font: 400 11px/1.45 var(--f-mono); word-break: break-all; }
-
-  /* The signature line of the form: always in reach, pinned to the bottom of the sheet. */
-  .actions {
-    position: sticky; bottom: 0; z-index: 1;
-    display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
-    margin-top: 20px; padding: 12px 0 16px;
-    border-top: 2px solid var(--ink); background: var(--paper);
-  }
-  .note { color: var(--ink-2); font-size: 14px; }
+  .msg { font-size: 14px; line-height: 1.4; }
+  .outcome.fail .msg { color: var(--fail); }
+  .ms { color: var(--mute); font-size: 13px; white-space: nowrap; }
+  .fp { max-width: 100%; font-size: 11px; line-height: 1.45; word-break: break-all; }
 </style>
+

@@ -1,342 +1,332 @@
 ---
 name: Utilidades XORCOM
-description: A carbonless work-order pad for configuring CompletePBX 5 systems; every change is a numbered, stamped form.
+description: Desktop utilities for CompletePBX 5, signed like a hospital corridor; one big sign names the PBX, numbered steps say what to fill next, the current step is lit.
 colors:
-  spot-ink: "#233d7a"
-  spot-ink-deep: "#1a2f5c"
-  secondary-print: "#4a5f8f"
-  folio-red: "#c8202f"
-  sello-violet: "#5b3a9e"
-  white-copy: "#fbfcfd"
-  canary-copy: "#f6e27a"
-  pink-copy: "#f4c6cf"
-  failure-ink: "#9f1526"
-  data-ink: "#16181d"
-  hairline: "#c9d1e3"
-  ink-wash: "#233d7a0f"
-  pad-quiet: "#c5cde0"
+  sign: "#0e4d64"
+  sign-hover: "#0b4256"
+  sign-deep: "#0a3a4c"
+  sign-line: "#1d5468"
+  on-sign: "#ffffff"
+  on-sign-2: "#c3dae2"
+  ground: "#f3f5f6"
+  panel: "#ffffff"
+  tint: "#e6eff2"
+  ink: "#12202b"
+  mute: "#56656f"
+  rule: "#d5dde1"
+  rule-strong: "#b7c4cb"
+  lit: "#ffd23f"
+  lit-soft: "#fff4c7"
+  lit-rule: "#ecdc96"
+  lit-mute: "#6a5710"
+  fail: "#c62828"
+  fail-soft: "#fbe1df"
+  ok: "#1b7f4b"
 typography:
   display:
-    fontFamily: "'Barlow Semi Condensed', 'Arial Narrow', sans-serif"
-    fontSize: "30px"
-    fontWeight: 700
-    lineHeight: 1
-    letterSpacing: "0.03em"
+    fontFamily: "Atkinson Hyperlegible Next Variable, Segoe UI, sans-serif"
+    fontSize: "28px"
+    fontWeight: 800
+    lineHeight: 1.1
+    letterSpacing: "-0.01em"
   headline:
-    fontFamily: "'Barlow Semi Condensed', 'Arial Narrow', sans-serif"
+    fontFamily: "Atkinson Hyperlegible Next Variable, Segoe UI, sans-serif"
     fontSize: "26px"
-    fontWeight: 700
-    lineHeight: 0.95
-    letterSpacing: "0.02em"
+    fontWeight: 800
+    lineHeight: 1.15
+    letterSpacing: "-0.01em"
   title:
-    fontFamily: "'Barlow', 'Segoe UI', sans-serif"
-    fontSize: "17px"
-    fontWeight: 500
+    fontFamily: "Atkinson Hyperlegible Next Variable, Segoe UI, sans-serif"
+    fontSize: "16px"
+    fontWeight: 800
     lineHeight: 1.2
-    fontFeature: "tnum"
   body:
-    fontFamily: "'Barlow', 'Segoe UI', sans-serif"
+    fontFamily: "Atkinson Hyperlegible Next Variable, Segoe UI, sans-serif"
     fontSize: "15px"
     fontWeight: 400
-    lineHeight: 1.4
-    fontFeature: "tnum"
-  field-data:
-    fontFamily: "'Barlow', 'Segoe UI', sans-serif"
-    fontSize: "16px"
-    fontWeight: 500
-    lineHeight: 1.3
-    fontFeature: "tnum"
-  note:
-    fontFamily: "'Barlow', 'Segoe UI', sans-serif"
-    fontSize: "14px"
-    fontWeight: 400
-    lineHeight: 1.4
-  fine-print:
-    fontFamily: "'Barlow', 'Segoe UI', sans-serif"
-    fontSize: "12px"
-    fontWeight: 400
-    lineHeight: 1.35
-  small-label:
-    fontFamily: "'Barlow Semi Condensed', 'Arial Narrow', sans-serif"
-    fontSize: "12px"
-    fontWeight: 600
-    lineHeight: 1
-    letterSpacing: "0.06em"
-  label:
-    fontFamily: "'Barlow Semi Condensed', 'Arial Narrow', sans-serif"
-    fontSize: "11px"
-    fontWeight: 600
-    lineHeight: 1
-    letterSpacing: "0.09em"
-  button:
-    fontFamily: "'Barlow Semi Condensed', 'Arial Narrow', sans-serif"
-    fontSize: "13px"
-    fontWeight: 600
-    lineHeight: 1
-    letterSpacing: "0.06em"
-  stamp:
-    fontFamily: "'Barlow Semi Condensed', 'Arial Narrow', sans-serif"
-    fontSize: "16px"
-    fontWeight: 700
-    lineHeight: 1
-    letterSpacing: "0.14em"
-  mono:
-    fontFamily: "'JetBrains Mono', Consolas, monospace"
-    fontSize: "11px"
-    fontWeight: 400
     lineHeight: 1.45
+    fontFeature: "tnum"
+  label:
+    fontFamily: "Atkinson Hyperlegible Next Variable, Segoe UI, sans-serif"
+    fontSize: "14px"
+    fontWeight: 700
+    lineHeight: 1.2
+  hint:
+    fontFamily: "Atkinson Hyperlegible Next Variable, Segoe UI, sans-serif"
+    fontSize: "13px"
+    fontWeight: 400
+    lineHeight: 1.4
+  stamp:
+    fontFamily: "Atkinson Hyperlegible Next Variable, Segoe UI, sans-serif"
+    fontSize: "15px"
+    fontWeight: 800
+    lineHeight: 1
+    letterSpacing: "0.12em"
+  mono:
+    fontFamily: "JetBrains Mono, Consolas, monospace"
+    fontSize: "13px"
+    fontWeight: 400
+    lineHeight: 1
 rounded:
-  none: "0px"
-  edge: "2px"
-  stamp: "3px"
+  stamp: "4px"
+  control: "8px"
+  notice: "10px"
+  panel: "12px"
+  pill: "99px"
 spacing:
-  hair: "4px"
-  tight: "6px"
-  cell: "12px"
-  section: "20px"
-  gutter: "32px"
+  gutter: "28px"
+  gap: "14px"
+  panel-x: "16px"
+  control-x: "12px"
 components:
   button-primary:
-    backgroundColor: "{colors.spot-ink}"
-    textColor: "{colors.white-copy}"
-    typography: "{typography.button}"
-    rounded: "{rounded.edge}"
-    padding: "0 14px"
-    height: "34px"
-  button-primary-hover:
-    backgroundColor: "{colors.spot-ink-deep}"
-  button-secondary:
-    backgroundColor: "{colors.white-copy}"
-    textColor: "{colors.spot-ink}"
-    typography: "{typography.button}"
-    rounded: "{rounded.edge}"
-    padding: "0 14px"
-    height: "34px"
-  button-secondary-hover:
-    backgroundColor: "{colors.ink-wash}"
-  button-danger:
-    backgroundColor: "{colors.white-copy}"
-    textColor: "{colors.folio-red}"
-    typography: "{typography.button}"
-    rounded: "{rounded.edge}"
-    padding: "0 14px"
-    height: "34px"
-  button-small:
-    typography: "{typography.button}"
-    padding: "0 10px"
-    height: "28px"
-  ruled-field:
-    backgroundColor: "transparent"
-    textColor: "{colors.data-ink}"
-    typography: "{typography.field-data}"
-    rounded: "{rounded.none}"
-    padding: "6px 12px 7px"
-  header-box:
-    backgroundColor: "{colors.white-copy}"
-    textColor: "{colors.data-ink}"
+    backgroundColor: "{colors.sign}"
+    textColor: "{colors.on-sign}"
     typography: "{typography.title}"
-    rounded: "{rounded.none}"
-    padding: "8px 12px 10px"
-  form-tab:
-    backgroundColor: "transparent"
-    textColor: "{colors.white-copy}"
-    rounded: "{rounded.edge}"
-    padding: "10px 16px 10px 12px"
-  form-tab-active:
-    backgroundColor: "{colors.white-copy}"
-    textColor: "{colors.spot-ink}"
+    rounded: "{rounded.control}"
+    padding: "0 20px 0 12px"
+    height: "48px"
+  button-primary-hover:
+    backgroundColor: "{colors.sign-hover}"
+  button-secondary:
+    backgroundColor: "{colors.panel}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.control}"
+    padding: "0 16px"
+    height: "44px"
+  button-small:
+    rounded: "{rounded.control}"
+    padding: "0 12px"
+    height: "36px"
+  button-lit:
+    backgroundColor: "{colors.lit}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.control}"
+  input:
+    backgroundColor: "{colors.panel}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.control}"
+    padding: "0 12px"
+    height: "44px"
+  input-disabled:
+    backgroundColor: "{colors.ground}"
+    textColor: "{colors.mute}"
+  step-panel:
+    backgroundColor: "{colors.panel}"
+    rounded: "{rounded.panel}"
+    padding: "14px 16px 16px"
+  step-disc:
+    backgroundColor: "{colors.sign}"
+    textColor: "{colors.on-sign}"
+    size: "28px"
+  step-disc-done:
+    backgroundColor: "{colors.ok}"
+  step-disc-lit:
+    backgroundColor: "{colors.lit}"
+    textColor: "{colors.ink}"
+  preview-lit:
+    backgroundColor: "{colors.lit-soft}"
+    rounded: "{rounded.panel}"
+  preview-lit-bar:
+    backgroundColor: "{colors.lit}"
+    textColor: "{colors.ink}"
+    height: "54px"
+  pbx-sign:
+    backgroundColor: "{colors.sign}"
+    textColor: "{colors.on-sign}"
+    typography: "{typography.display}"
+    padding: "14px 28px"
+  directory-sign:
+    backgroundColor: "{colors.sign-deep}"
+    textColor: "{colors.on-sign-2}"
+    width: "220px"
+  directory-entry-on:
+    backgroundColor: "{colors.ground}"
+    textColor: "{colors.ink}"
+  notice:
+    backgroundColor: "{colors.fail-soft}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.notice}"
+    padding: "12px 14px"
   stamp-ok:
-    textColor: "{colors.sello-violet}"
+    textColor: "{colors.ok}"
     typography: "{typography.stamp}"
     rounded: "{rounded.stamp}"
     padding: "4px 10px 3px"
   stamp-fail:
-    textColor: "{colors.failure-ink}"
-    typography: "{typography.stamp}"
-    rounded: "{rounded.stamp}"
-    padding: "4px 10px 3px"
-  outcome-cell-fail:
-    backgroundColor: "{colors.pink-copy}"
-    textColor: "{colors.data-ink}"
-    padding: "8px 12px 14px"
+    textColor: "{colors.fail}"
+  action-bar:
+    backgroundColor: "{colors.panel}"
+    padding: "14px 28px 16px"
 ---
 
 # Design System: Utilidades XORCOM
 
 ## Overview
 
-**Creative North Star: "The Carbonless Work Order"**
+**Creative North Star: "The Hospital Corridor"**
 
-Every PBX change is a numbered work order from a tear-off pad: printed in one spot ink on white copy, filled in with black data, numbered in red, and stamped in violet as each line lands. The interface is a sheet of ruled boxes, not a dashboard. Labels are what the printer put on the form (condensed caps in spot ink); values are what the technician filled in (Barlow in near-black, tabular figures). The copy color itself carries state: white is the working copy, canary is the preview copy, pink is the failure copy.
+Every screen is signed the way a hospital signs its corridors. A dark directory sign on the left lists the tools like a floor directory; a sign-teal band across the top names the PBX you are standing in, large enough to read from across the desk; numbered step panels say what to fill next, and the step you are on is lit yellow. Results land as inked stamps, the one physical mark carried over from the earlier world.
 
-Density is that of a real form: tight ruled cells (12px side padding), 1px internal rules and 2px structural rules, no cards, no floating panels. One sheet is in focus at a time; while a form runs, everything except the active sheet steps back to 35% opacity. Motion exists only for the stamp landing. Light theme only, by decision (office-light scene); all UI copy is Spanish.
-
-The world explicitly refuses the dark-sidebar SaaS dashboard of KPI cards. The dark ink column on the left is a tear-off pad with a glued binding edge, not a navigation rail.
+The system is light, calm and dense enough for a technician at an office desk in a bright room. Color is functional only: teal means "sign" (where you are, what to press, where to type), yellow means "you are here, look now", red means failure, green means done. It refuses the paper form and the card-grid admin panel, and it is never flashy or gamer-styled.
 
 **Key Characteristics:**
-- One spot ink (#233d7a) for every rule, label, and printed element.
-- Copy color = state: white working, canary preview, pink failure.
-- Ruled grid fields: labels sit inside the cell above the value; borders are the structure.
-- Red is reserved for the folio number, the pad's binding edge, and destructive actions.
-- Violet is reserved for the sello (stamp), caret, and focus ring: the technician's own mark.
-- Flat. No shadows, no texture, no gradients.
+- Light UI on a cool off-white ground (#f3f5f6) with white step panels on 2px rules.
+- Two signs frame every tool: the directory sign (220px, left) and the PBX sign band (sticky, top).
+- Numbered step discs; the current step is lit; step 4 is always the Aplicar button.
+- Inputs are unmistakable: white, 44px, 2px sign-teal border at rest.
+- Outcomes are stamps: CONECTADO / FALLÓ per channel, APLICADO / FALLÓ per line, APLICADO / CON FALLAS per run.
+- No folio numbers, run numbers or dates in the UI.
 
 ## Colors
 
-A two-ink printed form (spot blue plus near-black fill-in) on three copy papers, with red and violet as reserved marks.
+A sign-teal and white wayfinding palette on a cool neutral ground, with exactly three signal colors (lit yellow, failure red, done green), each bound to one meaning.
 
 ### Primary
-- **Spot Ink** (spot-ink): every rule, label, form code, primary button fill, ledger marks, and the pad background. It is the printer's ink; anything printed on the form uses it.
-- **Deep Spot Ink** (spot-ink-deep): primary button hover only.
-- **Secondary Print** (secondary-print): instructions, hints, placeholders (italic), row numbers, ms readouts, pending states, disabled values, scrollbar thumb.
+- **Sign Teal** (sign): the PBX sign band, primary buttons, step discs, input borders, links, the focus outline and caret. If it is teal, it is signage or something to act on.
+- **Sign Teal Pressed** (sign-hover): hover on primary buttons only.
+- **Deep Directory Teal** (sign-deep): the directory sign behind the tool list.
+- **Sign Rule** (sign-line): 1px rules between directory entries and the pictogram tiles on the dark sign.
+- **Sign White** (on-sign) and **Sign Haze** (on-sign-2): primary and secondary text on the teal signs.
 
 ### Secondary
-- **Folio Red** (folio-red): the folio number in the header block, the 10px glued binding strip at the top of the pad, and the danger button outline/text.
-- **Sello Violet** (sello-violet): the success stamp, the text caret, and the 2px focus outline. It is the technician's hand-applied mark.
+- **Lit Yellow** (lit): "you are here". The current step's disc, the preview's sticky bar, the update button on the directory sign, and the text-selection highlight.
+- **Lit Wash** (lit-soft): the body of the lit preview.
+- **Lit Rule** (lit-rule): row rules inside the lit preview.
+- **Lit Umber** (lit-mute): secondary text on yellow (row numbers, column heads, tags), tinted from the yellow; 6.4:1 on Lit Wash.
 
-### Tertiary (copy papers)
-- **Canary Copy** (canary-copy): the preview copy of a write flow (built in F-02; see Components), and the text selection highlight on white copy. One shipped exception: the pad's "Actualizar y reiniciar" button.
-- **Pink Copy** (pink-copy): the failure copy. A failed outcome cell and the corrupt-file notice take this background; error text in the ink pad uses it as text.
-- **Failure Ink** (failure-ink): failure stamp and the notice border; chosen for AA contrast on pink.
+### Tertiary
+- **Failure Red** (fail) and **Failure Wash** (fail-soft): FALLÓ stamps, failed row backgrounds, error reasons, the notice panel, destructive confirmations.
+- **Done Green** (ok): CONECTADO / APLICADO stamps, completed step discs and check marks, applied-row marks.
 
 ### Neutral
-- **White Copy** (white-copy): the working copy; page background, header block, sticky action bar, active pad tab.
-- **Data Ink** (data-ink): filled-in values and body text.
-- **Hairline** (hairline): light row rules between ledger rows only.
-- **Ink Wash** (ink-wash, spot ink at ~6%): hover on secondary buttons, the editing ledger row, channel head strips, and disabled channel fields.
-- **Pad Quiet** (pad-quiet): secondary text on the ink pad (pad subtitle, version line).
+- **Corridor Floor** (ground): the page ground, and the lit directory entry, which runs into the page.
+- **Panel White** (panel): step panels, inputs, secondary buttons, the action bar, table heads.
+- **Selected Tint** (tint): the registry row being edited.
+- **Ink** (ink): body text; also the border of a lit panel.
+- **Mute** (mute): secondary text, AA on ground, panel, lit-soft and fail-soft.
+- **Rule** (rule) and **Strong Rule** (rule-strong): panel borders and dividers; secondary button borders, pending marks, scrollbar thumb.
 
 ### Named Rules
-**The Copy Color Rule.** Background color changes only to signal which copy you are looking at: white working, canary preview, pink failure. Never use canary or pink as decoration or as a generic warning tint.
+**The One Meaning Rule.** Yellow is only "the step you are on" and "the preview to review"; red is only failure; green is only done. No color is used for decoration.
 
-**The Reserved Marks Rule.** Red belongs to the folio, the binding edge, and destruction; violet belongs to the stamp and the technician's cursor/focus. Neither appears as a general accent.
+**The Tinted-On-Yellow Rule.** Secondary text on yellow uses Lit Umber, never the grey Mute. On a failed row inside the preview, secondary text goes to Ink.
+
+**The Light Desk Rule.** The UI is light (`color-scheme: light`): it is used at office desks in bright rooms. There is no dark theme; the only dark surfaces are the two signs.
 
 ## Typography
 
-**Display Font:** Barlow Semi Condensed (with Arial Narrow)
-**Body Font:** Barlow (with Segoe UI)
-**Label/Mono Font:** Barlow Semi Condensed caps for labels; JetBrains Mono (with Consolas) only for data shown as data: fingerprints, hashes, file paths, and file-format samples
+**Display Font:** Atkinson Hyperlegible Next Variable (with Segoe UI, sans-serif)
+**Body Font:** Atkinson Hyperlegible Next Variable (with Segoe UI, sans-serif)
+**Label/Mono Font:** JetBrains Mono (with Consolas, monospace), for hosts, file paths and sample CSV only.
 
-**Character:** The condensed face is the printer's type: uppercase, tracked, in spot ink. The regular Barlow is the fill-in: sentence case, black, tabular figures everywhere so numbers align in columns. All faces are bundled via @fontsource and work offline.
+**Character:** One legibility-first family does every job, carried by weight (400 / 500 / 700 / 800) rather than by a second face. Tabular numerals are on everywhere so counts and PINs line up.
 
 ### Hierarchy
-- **Display** (700, 30px, 1): form title (e.g. CONEXIONES), uppercase in spot ink, beside a 2px-boxed form code (F-01, 700 15px).
-- **Headline** (700, 26px, 0.95): the pad's name block (UTILIDADES XORCOM), uppercase on ink.
-- **Title** (500, 17px, 1.2): header block values (Host, Fecha); the PBX picker uses 600; the folio uses 600 in red.
-- **Body** (400, 15px, 1.4): default text.
-- **Note** (400, 14px, 1.4): the form's instruction line (one line, secondary print, max 72ch) and the status note beside the actions.
-- **Fine print** (400, 12px, 1.35): channel hints, the pad's update area; outcome messages run at 13px.
-- **Small label** (600, 12px, 0.06em, uppercase): small buttons, pending outcome states, the pad subtitle.
-- **Field data** (500, 16px, 1.3): typed values inside ruled fields.
-- **Label** (600, 11px, 0.09em, uppercase): every printed field label, column heading, and section heading.
-- **Button** (600, 13px, 0.06em, uppercase): all buttons except small ones (Small label).
-- **Stamp** (700, 16px, 0.14em, uppercase): the sello only.
-- **Mono** (400, 11-13px, 1.45): fingerprints (break-all), file paths (13px in the path field), and the CSV format sample (12px).
+- **Display** (800, 28px, 1.1): the PBX name in the sign band, which is also the PBX switcher.
+- **Headline** (800, 26px, 1.15): the tool's page title, followed by one lead line (max 72ch, Mute).
+- **Title** (800, 16px, 1.2): step heads, the preview bar title, registry and section heads; primary button text.
+- **Body** (400, 15px, 1.45): everything else; input values at 500.
+- **Label** (700, 14px, 1.2): field names. Table column heads are 700 12px uppercase at 0.06em, a column label, not a section kicker.
+- **Hint** (400, 13px, 1.4): format hints under inputs, versions, timings.
+- **Stamp** (800, 15px, 0.12em, uppercase): result stamps; 12px / 0.1em for per-line stamps.
 
 ### Named Rules
-**The Printed vs. Filled Rule.** If the form printer would have put it there, it is condensed caps in spot ink. If the technician or the PBX supplied it, it is Barlow sentence case in data ink. Never set data in caps or labels in sentence case.
-
-**The Tabular Rule.** `font-variant-numeric: tabular-nums` is set on body; ports, ms, folio, and row numbers must line up.
+**The One Family Rule.** Hierarchy comes from weight and size inside Atkinson Hyperlegible Next. Mono appears only for machine strings the user may have to compare character by character.
 
 ## Layout
 
-A two-column desk: the tear-off pad at a fixed 232px, the sheet in the remaining width (`minmax(0, 1fr)`), full window height. The sheet scrolls; the pad does not.
+A fixed two-column shell: the 220px directory sign, then the tool view. The PBX sign band is sticky at the top of the view; its measured height (`--head-h`) is what tool headers pin beneath. Each tool is a `page` with 22px top and 28px side gutters, a title and lead, then step panels stacked full width with 14px gaps.
 
-The sheet has a 32px side gutter. At the top, a sticky header block (18px top, 12px bottom paper margin, so scrolled content passes under paper, never against the rule) holds four ruled boxes in a 2fr / 1.4fr / 0.8fr / 0.8fr grid with minimums of 200 / 150 / 110 / 110px: PBX, Host, Folio, Fecha. The active PBX is never off-screen.
+Steps 1 and 2 stack full width so long names and paths get room; from 1500px they sit side by side (1fr : 1.5fr). The preview's bar sticks under the PBX sign, and the table head sticks under the bar. Tables use fixed layout so columns never reflow as filters or stamps change a row.
 
-The form body is a 6-column ruled grid. Identity fields span 3 columns each; each channel is a fieldset spanning 2 columns, with a 96px + 1fr pair row for port/user; outcome cells sit under their channel, spanning 2 columns, minimum 96px tall. Sections are separated by 20px; labels sit 4-6px above values inside cells.
+The action bar is sticky at the bottom and the page is at least the window height below the sign, so the bar sits at the window foot even on a short page. It carries the numbered primary action, secondary actions, and a status note.
 
-A sticky action bar pins to the bottom of the sheet: 2px spot-ink top rule, white copy background, 10px gaps, wraps when narrow. Primary action first, then secondary, then destructive, then a status note.
+### Named Rules
+**The Window Foot Rule.** The action bar always sits at the window's foot, never floating mid-page after short content.
 
-Target: fits 1366x768 with no horizontal scroll; window minimum 1024x680.
+**The No Nested Box Rule.** Nothing boxed inside a step panel. Sub-areas (the three channel columns, the three outcomes) are split by 2px rules, not by inner cards.
 
 ## Elevation & Depth
 
-Completely flat. There are no shadows anywhere; depth is expressed as paper order and rules. The pulled pad tab is paper-colored and runs into the sheet; sticky layers (header block, action bar) are opaque white copy with a 2px ink rule at their seam. The only "depth" change is the busy state, where everything but the active sheet drops to 35% opacity and stops receiving pointer events.
+Flat. There are no shadows anywhere. Depth is said by color and rule weight: dark signs against a light ground, white panels on 2px rules, the lit preview's ink border and yellow bar. Stacking is only z-order for sticky layers (PBX sign, preview bar, table head, action bar), separated by 2px rules.
 
 ### Named Rules
-**The Flat Form Rule.** No box-shadow, no texture, no gradient, no blur at rest. A layer is distinguished by a rule or by copy color, never by lift.
-
-**The Two Weights Rule.** Rules are 1px (internal cell divisions) or 2px (structure: header block frame, ledger top/bottom, form top, outcome bottom, action bar top, boxed form code, buttons, stamps). Light 1px hairline-colored rules are only for ledger rows.
+**The Flat Sign Rule.** Signs and panels sit flat. Do not add shadows to show elevation; use a 2px rule or a sign color.
 
 ## Shapes
 
-Square paper. Ruled cells, the header block, ledger, and fieldsets have 0 radius. Interactive pieces get a barely-softened 2px corner (buttons, pad tabs), as if die-cut. The stamp is the only 3px corner and the only rotated element. Ledger state marks are 12px hollow squares (2px ink border) that fill solid for the active PBX. The pad carries a 10px folio-red binding strip above a 2px white rule, and dashed perforations (1px, white at 28%) between its form rows.
+Gently rounded and consistent: 12px for panels, the registry list and the preview; 10px for notices and the large PBX pictogram tile; 8px for inputs, buttons and pictogram tiles; 4px for stamps; full pills for the channel chips and the active marker; full circles for step discs and row marks. Borders are 2px solid (2.5px on a stamp); 1px only for table row rules and directory dividers. The format guide is the one dashed 2px outline, marking reference material rather than a step.
+
+Pictograms are an authored line set on a 24px grid: 2px stroke, round caps and joins, `currentColor`. On signs they sit in a rounded tile (34px in the directory, 50px white in the PBX band).
 
 ## Components
 
 ### Buttons
-Printed and die-cut: 2px outline, condensed caps, square-ish.
-- **Shape:** near-square corners (2px), height 34px, padding 0 14px; 2px border always.
-- **Primary:** spot ink fill, white copy text. One per action bar ("Guardar y probar").
-- **Hover / Focus:** secondary buttons take the ink wash; primary deepens to deep spot ink. Focus is a 2px violet outline at 2px offset (global).
-- **Secondary:** white copy fill, spot ink border and text.
-- **Danger:** folio red border and text; requires a second press within 4 seconds ("Confirmar: eliminar").
-- **Small:** 28px tall, 0 10px, 12px text; used inside outcome cells and the pad footer.
-- **Disabled:** 45% opacity.
-- **Link:** spot ink, 500 weight, 1px underline at 3px offset; used for ledger row names and "Usar".
+Signage you press: solid, square-shouldered, never glossy.
+- **Shape:** gently rounded (8px).
+- **Primary:** sign teal with white 800 16px text, 48px tall, led by a white step disc carrying its number (step 4, Aplicar). One per tool, in the action bar.
+- **Secondary:** white with a 2px Strong Rule border, ink 700 text, 44px; the border turns sign teal on hover. Small variant is 36px.
+- **Lit:** yellow fill, ink text; only for the update call on the directory sign.
+- **Danger / Confirm:** red text with a red-tinted border; the two-step confirm swaps the label to "Confirmar: ..." and the border to full red.
+- **Disabled:** 45% opacity, no hover change. A disabled Aplicar always has its reason in the status note beside it.
+- **Link:** sign teal 700 text with a 1.5px underline at 3px offset.
 
-### Ruled Fields
-- **Style:** a cell, not a box: 1px spot-ink right and bottom rules, label (Label style) above a borderless transparent input in Field data style. Padding 6px 12px 7px.
-- **Placeholder:** secondary print, italic, 400.
-- **Focus:** global violet outline, 4px offset; violet caret.
-- **Disabled:** value in secondary print; a disabled channel tints all its fields with the ink wash.
-- **Secrets:** an existing secret shows the placeholder "guardada"/"guardado"; typing replaces it.
+### Chips
+- **Channel chips (PBX sign):** pills on 14% white, 700 13px at 0.04em, led by a 9px dot. Enabled: filled dot. Disabled: hollow dot in Sign Haze on no fill; never struck through.
+- **Active marker (registry):** a 36px sign-teal pill with white text.
 
-### Channel Fieldset
-A 2-column-span column of ruled fields under an ink-wash head strip holding the channel label and an "Habilitado" checkbox (16px, accent spot ink). The fieldset draws the column's bottom rule; its last child drops its own.
+### Cards / Containers (step panels)
+- **Corner Style:** 12px.
+- **Background:** Panel White on a 2px Rule border.
+- **Head:** a 28px sign-teal disc with the step number, title text, and an optional muted aside at the right. A done step shows a green check after the title.
+- **Lit step:** ink border and a yellow disc with ink numeral.
+- **Internal Padding:** 14px 16px 16px.
 
-### Header Block
-The work-order header: 2px spot-ink frame, 1px ink dividers, each box a Label over a Title value. The PBX box is a borderless select with an ink chevron; Folio prints "Nº 0004" in folio red; empty values show an em dash.
+### Inputs / Fields
+- **Style:** white, 44px, 2px sign-teal border at rest, 8px radius, 500 15px value; field name above in Label. Selects use the same box with a teal chevron. Paths use mono 13px.
+- **Focus:** 3px lit-yellow outline flush to the border.
+- **Disabled:** border drops to Rule, background to ground, text to Mute.
+- **Checkboxes:** native, 18px, sign-teal accent.
 
-### Navigation (Form Pad)
-The tear-off pad: spot-ink column with the binding strip and perforated rows. Each row is code (Button-style caps, 13px) plus name (Barlow 500 15px) in white. Hover: white at 8%. Active: the tab turns white copy with ink text and runs into the sheet ("the pulled sheet"). Footer: version line in Label style (pad quiet) and update state messages at 12px.
+### Navigation (the directory sign)
+- Deep teal column, product name at 800 18px, then tools as full-width rows divided by 1px Sign Rule lines: pictogram tile, name, chevron.
+- **Hover:** 6% white wash, text to white. **Current:** the row turns ground-colored with ink text and a sign-teal tile, so it runs into the page.
+- The directory dims to 40% while a tool runs; the PBX sign does not.
+- Version and update controls sit at the foot.
 
-### Ledger
-A full-width table with 2px ink rules at top and bottom, a 1px ink rule under the Label-style heading row, and hairline row rules. Columns: state mark (34px), Nº (48px, two-digit, secondary print), name (link), host, row action (80px, right). The row being edited takes the ink wash.
+### PBX Sign Band (signature)
+Sticky sign-teal band: a 50px white tile with the phone pictogram, the PBX name at Display size as a borderless select (the switcher), host in mono plus "PBX activa" below, and channel chips at the right. It never dims, including while a tool writes to the PBX.
 
-### Stamp (Sello)
-The signature outcome. Condensed 700 caps in a 2px currentColor border, 3px corners, rotated by a per-cell tilt (`--r`, default -3deg; the three channel cells use -3, -1.5, -4.5deg so they read as three separate impressions). Violet "CONECTADO" for success, failure ink "FALLÓ" for failure. It lands once in 260ms on the expo-out curve (scale 1.6 to 1, blur 2px to 0, fade in); disabled under reduced motion.
+### Lit Preview (signature)
+The review step as a panel: Lit Wash body, ink border, a sticky 54px yellow bar (ink disc, title, counts at right, 5px teal progress line at its foot during a run), a toggle row, then a fixed-layout table. Row marks: hollow pending, green applied, red failed, dashed skipped. Failed rows take Failure Wash. Once a result exists, the panel returns to white.
 
-### Outcome Cell
-Under each channel: Label title, then pending text ("Sin probar" / "Probando…" / "Deshabilitado") or a stamp row (stamp + ms readout), the message, and when relevant the mono fingerprint with a small "Confiar en esta huella" button. A failed cell turns pink copy; its ms readout switches to data ink. 2px ink bottom rule closes the sheet.
+### Result Stamps (signature)
+Inked uppercase caps in a 2.5px current-color frame, rotated a few degrees with a varied tilt per impression (-3deg, -1.5deg, -4.5deg), landing once with a 260ms scale-and-unblur. Green for CONECTADO / APLICADO, red for FALLÓ / CON FALLAS. Per-line stamps in long tables are smaller (12px, 2px frame) and static.
 
-### Sticky Action Bar
-The signature line of every form; see Layout. Always present at the bottom of the sheet.
-
-### Write-Flow Preview Copy (built in F-02 PINes masivos)
-The copy a write flow shows before and after "Aplicar". Shipped first in F-02; any tool that writes to a PBX reuses it.
-- **Frame:** a 2px spot-ink box. Before Aplicar the paper is canary ("Copia — vista previa"); after, white ("Copia aplicada · Folio Nº 0008", the folio number in folio red) with one full-size sello in the strip (violet APLICADO, or failure ink CON FALLAS) that lands once.
-- **Strip:** 38px with 2px rules above and below (it carries the copy's top rule, so the rule travels with it when pinned), Label caps on the left, Small-label counts on the right ("4 nuevos · 0 ya existen · 1 sin descripción · 0 con error"), 2px rule under it. Counts use Spanish plurals and group thousands with a narrow no-break space ("5 768").
-- **While applying:** the strip reads "Copia — aplicando" and, on the right, the live step with a ticking clock ("Conectando con la PBX… · 3 s", "Escribiendo 1 200 de 5 764 PINes · 9 s", "Verificando…"); a native `<progress>` fills in spot ink, 4px, along the strip's bottom rule, from counts the PBX reports every 100 PINes. Steps with no counts (the portal reload) show only the clock: no invented percentage.
-- **Pinned heads:** the strip and the column-heading row are sticky under the header block (`--head-h`, measured by the shell), on opaque paper of the copy's color, so thousands of lines scroll beneath them.
-- **Lines:** a fixed-layout table (`table-layout: fixed`; Nº 72px, state 34px, PIN 130px, description auto, result 42%), so columns never reflow when a filter or the stamps change a row. Nº is the file's line number, zero-padded to the widest line (minimum two digits). Row rules on canary are spot ink at 22% (the hairline token vanishes on yellow); the last row drops its rule against the frame.
-- **Description cell:** the value as it will be stored; a fine-print "(ajustada)" tag (tooltip: what was removed) when F-02 made it portal-safe (letters, digits, space, dash, underscore).
-- **State cell:** the ledger's 12px mark with three states: hollow (pending, skipped), filled ink (applied), struck (failure-ink border and a 2px diagonal: error or failed).
-- **Result column:** before Aplicar "Nuevo", or quiet Small-label "YA EXISTE:" / "SIN DESCRIPCIÓN:" + fine-print "se omite", or failure-ink "Error: <reason>". After: per-line mini sellos (12px, 2px border, static, tilts cycling -3 / -1.5 / -4.5deg so no impression repeats) APLICADO or FALLÓ + reason, or quiet OMITIDO + reason.
-- **Failure:** error and failed rows turn pink copy; their line number and fine print switch to data ink for AA.
-- **Selection:** on canary paper the canary highlight would vanish, so selection there is reversed spot ink.
-- **Around it:** two checkboxes above the copy ("Incluir PINes sin descripción", "Solo filas a revisar": everything but plain new or applied lines, plus any "(ajustada)" description; it switches itself on when the file has errors, with "Mostrando N de M filas"). A two-step "Aplicar cambios en la PBX" sits in a white box with a 2px ink rule below the applied copy (never canary or pink: it is an instruction, not a preview or a failure).
-
-### Adding a Form
-A new tool is one Svelte form in `frontend/src/modules/` plus one registry line with code `F-0N` and a Spanish label. It inherits the shell (pad tab, sticky header block), and composes: the boxed code + Display title, a secondary-print instruction line, Label section headings, the 6-column ruled grid, Buttons, Stamp outcomes, and the sticky action bar.
+### Notice
+A problem the user must read: Failure Wash fill, full 2px red-tinted border, 10px radius, alert pictogram in red.
 
 ## Do's and Don'ts
 
 ### Do:
-- **Do** draw structure with spot-ink rules: 2px for frames and section seams, 1px inside.
-- **Do** put labels inside ruled cells, condensed caps 11px 0.09em in spot ink, above the filled value.
-- **Do** report each outcome with its own stamp at its own tilt; success violet, failure in failure ink on pink copy.
-- **Do** keep the header block and action bar sticky and opaque white copy.
-- **Do** dim everything but the active sheet to 35% while a form runs.
-- **Do** keep text AA on every copy color (failure ink, not folio red, on pink).
-- **Do** write all UI copy in Spanish.
+- **Do** keep every tool to one Svelte module plus one registry line (id, label, icon) in `frontend/src/modules.ts`; the directory sign builds itself from it.
+- **Do** number the steps and light only the current one; the preview is the only lit panel.
+- **Do** make every input a white 44px box with a 2px sign-teal border so it is always obvious where to type.
+- **Do** put the reason a primary action is disabled in the status note beside it.
+- **Do** report outcomes with stamps: CONECTADO / FALLÓ per channel, APLICADO / FALLÓ per line, APLICADO / CON FALLAS per run.
+- **Do** split sub-areas inside a panel with 2px rules.
+- **Do** use Lit Umber for secondary text on yellow.
+- **Do** honor reduced motion: stamps and transitions switch off.
 
 ### Don't:
-- **Don't** build a dark-sidebar SaaS dashboard with KPI cards, metric tiles, or floating cards.
-- **Don't** use shadows, paper texture, gradients, handwriting faces, or cream paper.
-- **Don't** use canary or pink for anything but the preview and failure copies (and selection highlight).
-- **Don't** use folio red or sello violet as general accents.
-- **Don't** set JetBrains Mono for anything but fingerprints, hashes, and paths.
-- **Don't** animate anything except the stamp landing and the busy dim.
-- **Don't** add a dark theme.
+- **Don't** show folio numbers, run numbers or dates in the UI.
+- **Don't** use a dark theme, neon, glow or any flashy or gamer look.
+- **Don't** nest boxes inside a step panel.
+- **Don't** use grey secondary text on yellow.
+- **Don't** strike through a disabled channel; use a hollow dot.
+- **Don't** dim the PBX sign during a write.
+- **Don't** let the action bar float mid-page; it sits at the window foot.
+- **Don't** use colored side stripes on notices, rows or panels; use full borders and fills.
+- **Don't** use yellow, red or green for anything but lit, failure and done.
+- **Don't** add shadows or a card grid.

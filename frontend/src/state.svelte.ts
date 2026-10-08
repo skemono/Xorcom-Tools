@@ -1,12 +1,11 @@
 import { ProfileService } from '../bindings/github.com/skemono/Xorcom-Tools'
 import type { ProfileView } from '../bindings/github.com/skemono/Xorcom-Tools'
 
-// Shared sheet state: the profiles view, the run folio, and whether a form is running.
+// Shared state: the profiles view and whether a tool is running.
 export const app = $state({
   active: '',
   profiles: [] as ProfileView[],
   recovered: '',
-  folio: 0,
   busy: false,
 })
 

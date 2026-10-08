@@ -11,8 +11,7 @@
     "check": "svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
-    "@fontsource/barlow": "^5.3.0",
-    "@fontsource/barlow-semi-condensed": "^5.3.0",
+    "@fontsource-variable/atkinson-hyperlegible-next": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.3.0",
     "@wailsio/runtime": "latest"
   },

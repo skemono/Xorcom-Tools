@@ -14,5 +14,6 @@ docs/reference/
 # impeccable decision logs and review captures
 .impeccable/questions/
 .impeccable/review/
+.impeccable/mocks/
 # Real PIN lists (names + authorization codes): local test data only, never commit
 docs/test_data/
