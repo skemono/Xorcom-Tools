@@ -37,7 +37,7 @@
   .toast.fail { border-color: var(--fail); background: var(--fail-soft); }
   .toast.fail .ico { color: var(--fail); }
   .toast.info .ico { color: var(--sign); }
-  /* A new version: the one notice in sign teal, with its action. */
+  /* A new version: the one notice in sign blue, with its action. */
   .toast.update { flex-wrap: wrap; border-color: var(--sign); background: var(--sign); color: var(--on-sign); }
   .toast.update .close { color: var(--on-sign); }
   .toast.update .close:focus-visible, .toast.update .btn:focus-visible { outline-color: var(--lit); }

@@ -44,7 +44,7 @@ input { caret-color: var(--sign); }
 h1, h2, p { margin: 0; }
 :focus-visible { outline: 3px solid var(--sign); outline-offset: 2px; }
 ::selection { background: var(--lit); color: var(--ink); }
-/* On yellow a yellow highlight vanishes: select in sign teal there. */
+/* On yellow a yellow highlight vanishes: select in sign blue there. */
 .lit ::selection { background: var(--sign); color: var(--on-sign); }
 * { scrollbar-width: thin; scrollbar-color: var(--rule-strong) transparent; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -66,7 +66,7 @@ h1 { font: 800 26px/1.15 var(--f); letter-spacing: -0.01em; }
 .disc.done { background: var(--ok); }
 .disc.idle { background: var(--rule); color: var(--mute); }
 
-/* Where to type: white, 44px, a 2px sign-teal border at rest. */
+/* Where to type: white, 44px, a 2px sign-blue border at rest. */
 .field { display: grid; gap: 6px; min-width: 0; }
 .field-name { font: 700 14px/1.2 var(--f); }
 .control {

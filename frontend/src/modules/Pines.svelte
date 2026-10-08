@@ -388,7 +388,7 @@
 
   .format { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 18px; align-items: start; margin-top: 14px; padding: 12px 16px; border: 2px dashed var(--rule-strong); border-radius: 12px; }
   .format-head { grid-column: 1 / -1; font: 800 15px/1.2 var(--f); }
-  .sample { margin: 0; padding: 8px 12px; border-radius: 6px; background: var(--panel); font: 400 13px/1.5 var(--f-mono); }
+  .sample { margin: 0; padding: 8px 12px; border-radius: 8px; background: var(--panel); font: 400 13px/1.5 var(--f-mono); }
 
   /* Step 3: the preview, lit yellow while it is the step you are on. */
   .review { margin-top: 14px; border: 2px solid var(--rule); border-radius: 12px; background: var(--panel); overflow: clip; }

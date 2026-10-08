@@ -142,7 +142,7 @@
   .brand { padding: 0 20px 20px; font: 800 18px/1.15 var(--f); }
   .brand span { display: block; margin-top: 4px; font-weight: 500; font-size: 13px; color: var(--on-sign-2); }
   /* The logo's two colors as one short rule under the name: the only place they appear as a pair. */
-  .brand::after { content: ''; display: block; width: 56px; height: 4px; margin-top: 14px; border-radius: 2px; background: linear-gradient(90deg, var(--brand-red) 50%, var(--brand-blue) 50%); }
+  .brand::after { content: ''; display: block; width: 56px; height: 4px; margin-top: 14px; background: linear-gradient(90deg, var(--brand-red) 50%, var(--brand-blue) 50%); }
   .tools { flex: 1; margin: 0; padding: 0; list-style: none; }
   .tool {
     display: flex; align-items: center; gap: 12px; width: 100%;
