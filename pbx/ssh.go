@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -33,6 +34,10 @@ func SSHRun(ctx context.Context, p Profile, password, keyPassphrase, cmd string)
 	out, err := SSHExec(ctx, p, password, keyPassphrase, cmd, nil)
 	return strings.TrimSpace(out), err
 }
+
+// sshDialTimeout bounds reaching the PBX: a host that never answers fails here, with the
+// Spanish "sin respuesta" message, instead of after Windows' own 21 s connect timeout.
+var sshDialTimeout = 10 * time.Second
 
 // SSHExec runs one command with stdin (secrets and data travel there, never in the command line).
 // It returns stdout as is; on failure the error carries the remote stderr.
@@ -89,7 +94,7 @@ func SSHStream(ctx context.Context, p Profile, password, keyPassphrase, cmd stri
 	}
 
 	addr := net.JoinHostPort(p.Host, strconv.Itoa(p.SSH.Port))
-	var d net.Dialer
+	d := net.Dialer{Timeout: sshDialTimeout}
 	conn, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return err

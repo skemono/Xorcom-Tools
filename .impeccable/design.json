@@ -1,147 +1,640 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-07T00:00:00Z",
+  "generatedAt": "2026-10-08T12:00:00Z",
   "title": "Design System: Utilidades XORCOM",
   "extensions": {
     "colorMeta": {
-      "spot-ink": { "role": "primary", "displayName": "Spot Ink", "canonical": "#233d7a", "tonalRamp": ["oklch(15% 0.06 265)", "oklch(25% 0.09 265)", "oklch(35% 0.11 265)", "oklch(45% 0.11 265)", "oklch(55% 0.10 265)", "oklch(70% 0.07 265)", "oklch(85% 0.04 265)", "oklch(95% 0.015 265)"] },
-      "spot-ink-deep": { "role": "primary", "displayName": "Deep Spot Ink", "canonical": "#1a2f5c", "tonalRamp": ["oklch(15% 0.06 265)", "oklch(25% 0.08 265)", "oklch(35% 0.09 265)", "oklch(45% 0.09 265)", "oklch(55% 0.08 265)", "oklch(70% 0.06 265)", "oklch(85% 0.03 265)", "oklch(95% 0.01 265)"] },
-      "secondary-print": { "role": "primary", "displayName": "Secondary Print", "canonical": "#4a5f8f", "tonalRamp": ["oklch(15% 0.04 265)", "oklch(25% 0.06 265)", "oklch(35% 0.07 265)", "oklch(45% 0.08 265)", "oklch(55% 0.08 265)", "oklch(70% 0.06 265)", "oklch(85% 0.03 265)", "oklch(95% 0.01 265)"] },
-      "folio-red": { "role": "secondary", "displayName": "Folio Red", "canonical": "#c8202f", "tonalRamp": ["oklch(15% 0.06 25)", "oklch(25% 0.10 25)", "oklch(35% 0.14 25)", "oklch(45% 0.18 25)", "oklch(55% 0.20 25)", "oklch(70% 0.14 25)", "oklch(85% 0.07 25)", "oklch(95% 0.02 25)"] },
-      "sello-violet": { "role": "secondary", "displayName": "Sello Violet", "canonical": "#5b3a9e", "tonalRamp": ["oklch(15% 0.06 295)", "oklch(25% 0.10 295)", "oklch(35% 0.13 295)", "oklch(45% 0.14 295)", "oklch(55% 0.14 295)", "oklch(70% 0.10 295)", "oklch(85% 0.05 295)", "oklch(95% 0.02 295)"] },
-      "canary-copy": { "role": "tertiary", "displayName": "Canary Copy", "canonical": "#f6e27a", "tonalRamp": ["oklch(15% 0.03 98)", "oklch(25% 0.05 98)", "oklch(35% 0.07 98)", "oklch(45% 0.09 98)", "oklch(55% 0.11 98)", "oklch(70% 0.13 98)", "oklch(85% 0.13 98)", "oklch(95% 0.06 98)"] },
-      "pink-copy": { "role": "tertiary", "displayName": "Pink Copy", "canonical": "#f4c6cf", "tonalRamp": ["oklch(15% 0.02 5)", "oklch(25% 0.03 5)", "oklch(35% 0.04 5)", "oklch(45% 0.05 5)", "oklch(55% 0.05 5)", "oklch(70% 0.05 5)", "oklch(85% 0.05 5)", "oklch(95% 0.02 5)"] },
-      "failure-ink": { "role": "tertiary", "displayName": "Failure Ink", "canonical": "#9f1526", "tonalRamp": ["oklch(15% 0.06 22)", "oklch(25% 0.10 22)", "oklch(35% 0.14 22)", "oklch(45% 0.16 22)", "oklch(55% 0.17 22)", "oklch(70% 0.12 22)", "oklch(85% 0.06 22)", "oklch(95% 0.02 22)"] },
-      "white-copy": { "role": "neutral", "displayName": "White Copy", "canonical": "#fbfcfd", "tonalRamp": ["oklch(15% 0.003 250)", "oklch(25% 0.003 250)", "oklch(35% 0.003 250)", "oklch(45% 0.003 250)", "oklch(55% 0.003 250)", "oklch(70% 0.003 250)", "oklch(85% 0.003 250)", "oklch(99% 0.002 250)"] },
-      "data-ink": { "role": "neutral", "displayName": "Data Ink", "canonical": "#16181d", "tonalRamp": ["oklch(15% 0.01 265)", "oklch(20% 0.01 265)", "oklch(35% 0.01 265)", "oklch(45% 0.01 265)", "oklch(55% 0.01 265)", "oklch(70% 0.008 265)", "oklch(85% 0.005 265)", "oklch(95% 0.003 265)"] },
-      "hairline": { "role": "neutral", "displayName": "Hairline", "canonical": "#c9d1e3", "tonalRamp": ["oklch(15% 0.02 265)", "oklch(25% 0.025 265)", "oklch(35% 0.025 265)", "oklch(45% 0.025 265)", "oklch(55% 0.025 265)", "oklch(70% 0.025 265)", "oklch(86% 0.025 265)", "oklch(95% 0.01 265)"] },
-      "ink-wash": { "role": "neutral", "displayName": "Ink Wash", "canonical": "#233d7a0f" },
-      "pad-quiet": { "role": "neutral", "displayName": "Pad Quiet", "canonical": "#c5cde0" }
+      "sign": {
+        "role": "primary",
+        "displayName": "Xorcom Sign Blue",
+        "canonical": "oklch(49.7% 0.126 245.5)",
+        "tonalRamp": [
+          "#000c1a",
+          "#022742",
+          "#054570",
+          "#0d66a0",
+          "#3488c9",
+          "#5aacef",
+          "#9bcffd",
+          "#e2f1fe"
+        ]
+      },
+      "sign-hover": {
+        "role": "primary",
+        "displayName": "Sign Blue Pressed",
+        "canonical": "oklch(44.2% 0.112 245.2)",
+        "tonalRamp": [
+          "#000c1a",
+          "#002743",
+          "#004571",
+          "#1a669c",
+          "#4188c1",
+          "#65ace7",
+          "#9ad0fe",
+          "#e1f1ff"
+        ]
+      },
+      "sign-deep": {
+        "role": "primary",
+        "displayName": "Wordmark Charcoal",
+        "canonical": "oklch(24.4% 0.006 0.6)",
+        "tonalRamp": [
+          "#0e0a0b",
+          "#282425",
+          "#454142",
+          "#656061",
+          "#868182",
+          "#a9a3a5",
+          "#cdc7c9",
+          "#f2edee"
+        ]
+      },
+      "sign-line": {
+        "role": "primary",
+        "displayName": "Charcoal Rule",
+        "canonical": "oklch(33.6% 0.009 6.1)",
+        "tonalRamp": [
+          "#0e0a0b",
+          "#292324",
+          "#464041",
+          "#665f60",
+          "#878081",
+          "#aaa3a4",
+          "#cec7c8",
+          "#f4eced"
+        ]
+      },
+      "on-sign": {
+        "role": "primary",
+        "displayName": "Sign White",
+        "canonical": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "on-sign-2": {
+        "role": "primary",
+        "displayName": "Charcoal Haze",
+        "canonical": "oklch(84.6% 0.006 3.4)",
+        "tonalRamp": [
+          "#0d0a0b",
+          "#282425",
+          "#454142",
+          "#646061",
+          "#858182",
+          "#a8a4a4",
+          "#cdc8c9",
+          "#f2edee"
+        ]
+      },
+      "on-band-2": {
+        "role": "primary",
+        "displayName": "Band Haze",
+        "canonical": "oklch(92.8% 0.024 236.0)",
+        "tonalRamp": [
+          "#030d14",
+          "#1a272f",
+          "#36444d",
+          "#55646d",
+          "#75858f",
+          "#98a8b2",
+          "#bbccd7",
+          "#e0f1fc"
+        ]
+      },
+      "brand-blue": {
+        "role": "primary",
+        "displayName": "Logo Blue",
+        "canonical": "oklch(53.1% 0.130 243.7)",
+        "tonalRamp": [
+          "#000c1a",
+          "#012741",
+          "#03466e",
+          "#09679e",
+          "#2b89ca",
+          "#53adf0",
+          "#98d0fe",
+          "#e1f1ff"
+        ]
+      },
+      "brand-red": {
+        "role": "primary",
+        "displayName": "Logo Crimson",
+        "canonical": "oklch(54.5% 0.211 17.0)",
+        "tonalRamp": [
+          "#1e0004",
+          "#4b0212",
+          "#7e0524",
+          "#b40e38",
+          "#e53353",
+          "#fe717e",
+          "#feb2b5",
+          "#ffe8e9"
+        ]
+      },
+      "lit": {
+        "role": "secondary",
+        "displayName": "Lit Yellow",
+        "canonical": "oklch(87.9% 0.162 90.9)",
+        "tonalRamp": [
+          "#100a00",
+          "#2f2401",
+          "#514004",
+          "#765e0b",
+          "#9d7f14",
+          "#c7a009",
+          "#f1c429",
+          "#ffeebe"
+        ]
+      },
+      "lit-soft": {
+        "role": "secondary",
+        "displayName": "Lit Wash",
+        "canonical": "oklch(96.5% 0.059 95.9)",
+        "tonalRamp": [
+          "#0f0b00",
+          "#2d2501",
+          "#4b421a",
+          "#6b6139",
+          "#8d8359",
+          "#b0a57b",
+          "#d4ca9e",
+          "#faefc2"
+        ]
+      },
+      "lit-rule": {
+        "role": "secondary",
+        "displayName": "Lit Rule",
+        "canonical": "oklch(89.2% 0.091 96.8)",
+        "tonalRamp": [
+          "#0f0b00",
+          "#2d2500",
+          "#4e4101",
+          "#706119",
+          "#92823e",
+          "#b5a561",
+          "#daca84",
+          "#ffefad"
+        ]
+      },
+      "lit-mute": {
+        "role": "secondary",
+        "displayName": "Lit Umber",
+        "canonical": "oklch(46.3% 0.088 92.8)",
+        "tonalRamp": [
+          "#100b00",
+          "#2e2401",
+          "#504003",
+          "#735f1c",
+          "#958140",
+          "#b8a463",
+          "#ddc886",
+          "#feeebb"
+        ]
+      },
+      "fail": {
+        "role": "tertiary",
+        "displayName": "Xorcom Crimson",
+        "canonical": "oklch(53.3% 0.207 17.2)",
+        "tonalRamp": [
+          "#1e0003",
+          "#4c0011",
+          "#7d0a24",
+          "#b60236",
+          "#e33653",
+          "#fc727e",
+          "#ffb1b4",
+          "#fee8e9"
+        ]
+      },
+      "fail-soft": {
+        "role": "tertiary",
+        "displayName": "Crimson Wash",
+        "canonical": "oklch(94.0% 0.027 0.7)",
+        "tonalRamp": [
+          "#14060a",
+          "#301f24",
+          "#4f3c41",
+          "#6f5b60",
+          "#917c81",
+          "#b59ea4",
+          "#d9c2c8",
+          "#ffe8ed"
+        ]
+      },
+      "fail-rule": {
+        "role": "tertiary",
+        "displayName": "Crimson Rule",
+        "canonical": "oklch(80.9% 0.081 3.3)",
+        "tonalRamp": [
+          "#1d0009",
+          "#430f21",
+          "#642e3d",
+          "#874d5c",
+          "#ab6e7d",
+          "#d190a0",
+          "#f7b4c4",
+          "#ffe8ed"
+        ]
+      },
+      "fail-on-sign": {
+        "role": "tertiary",
+        "displayName": "Crimson on Charcoal",
+        "canonical": "oklch(87.2% 0.072 4.5)",
+        "tonalRamp": [
+          "#1e0008",
+          "#401321",
+          "#61313d",
+          "#84505c",
+          "#a7707d",
+          "#cc939f",
+          "#f3b6c3",
+          "#ffe8ec"
+        ]
+      },
+      "ok": {
+        "role": "tertiary",
+        "displayName": "Done Green",
+        "canonical": "oklch(52.8% 0.121 154.9)",
+        "tonalRamp": [
+          "#001005",
+          "#002e16",
+          "#01502b",
+          "#057441",
+          "#3a9761",
+          "#60bb83",
+          "#85e1a6",
+          "#c7fed8"
+        ]
+      },
+      "ground": {
+        "role": "neutral",
+        "displayName": "Corridor Floor",
+        "canonical": "oklch(96.7% 0.001 286.4)",
+        "tonalRamp": [
+          "#0b0b0c",
+          "#252526",
+          "#424243",
+          "#616162",
+          "#828283",
+          "#a5a5a6",
+          "#c9c9ca",
+          "#eeeeef"
+        ]
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Panel White",
+        "canonical": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "tint": {
+        "role": "neutral",
+        "displayName": "Selected Tint",
+        "canonical": "oklch(94.6% 0.018 240.0)",
+        "tonalRamp": [
+          "#050c12",
+          "#1d262d",
+          "#3a434b",
+          "#59636a",
+          "#79848c",
+          "#9ca7af",
+          "#bfcbd4",
+          "#e4f0f9"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "oklch(24.4% 0.006 0.6)",
+        "tonalRamp": [
+          "#0e0a0b",
+          "#282425",
+          "#454142",
+          "#656061",
+          "#868182",
+          "#a9a3a5",
+          "#cdc7c9",
+          "#f2edee"
+        ]
+      },
+      "mute": {
+        "role": "neutral",
+        "displayName": "Mute",
+        "canonical": "oklch(47.1% 0.004 354.8)",
+        "tonalRamp": [
+          "#0d0a0b",
+          "#272425",
+          "#444142",
+          "#636061",
+          "#848182",
+          "#a7a4a5",
+          "#cbc8c9",
+          "#f1edee"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Rule",
+        "canonical": "oklch(88.8% 0.003 264.5)",
+        "tonalRamp": [
+          "#0a0b0c",
+          "#242526",
+          "#414244",
+          "#606163",
+          "#818284",
+          "#a4a5a7",
+          "#c8c9cb",
+          "#edeef0"
+        ]
+      },
+      "rule-strong": {
+        "role": "neutral",
+        "displayName": "Strong Rule",
+        "canonical": "oklch(79.4% 0.007 255.5)",
+        "tonalRamp": [
+          "#090b0e",
+          "#232528",
+          "#404245",
+          "#5f6165",
+          "#808386",
+          "#a2a5a9",
+          "#c6c9cd",
+          "#eceff3"
+        ]
+      }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display", "purpose": "Form title beside the boxed form code; uppercase spot ink." },
-      "headline": { "displayName": "Headline", "purpose": "Pad name block on the ink pad." },
-      "title": { "displayName": "Title", "purpose": "Header block values: PBX, Host, Folio, Fecha." },
-      "body": { "displayName": "Body", "purpose": "Default text, tabular figures." },
-      "field-data": { "displayName": "Field data", "purpose": "Values typed into ruled fields." },
-      "label": { "displayName": "Label", "purpose": "Printed field labels, column and section headings; uppercase spot ink." },
-      "button": { "displayName": "Button", "purpose": "All buttons, uppercase." },
-      "stamp": { "displayName": "Stamp", "purpose": "The sello outcome only." },
-      "mono": { "displayName": "Mono", "purpose": "Fingerprints, hashes, file paths only." }
+      "display": {
+        "displayName": "PBX Sign",
+        "purpose": "The PBX name in the sign band; also the switcher."
+      },
+      "headline": {
+        "displayName": "Page Title",
+        "purpose": "The tool title, once per page."
+      },
+      "title": {
+        "displayName": "Step Title",
+        "purpose": "Step heads, preview bar, section heads, primary button."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Everything else; tabular numerals on."
+      },
+      "label": {
+        "displayName": "Field Name",
+        "purpose": "Names above inputs."
+      },
+      "hint": {
+        "displayName": "Hint",
+        "purpose": "Format hints, version, timings."
+      },
+      "stamp": {
+        "displayName": "Stamp",
+        "purpose": "Uppercase result stamps; 12px per line."
+      },
+      "mono": {
+        "displayName": "Machine String",
+        "purpose": "Hosts, file paths, sample CSV."
+      }
     },
-    "shadows": [],
+    "shadows": [
+      {
+        "name": "floating-notice",
+        "value": "0 6px 18px rgb(35 31 32 / 0.16)",
+        "purpose": "Notices (toasts) only: they float over live content. The only shadow in the system."
+      }
+    ],
     "motion": [
-      { "name": "ease-out", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Stamp landing and busy dim." },
-      { "name": "stamp-in", "value": "260ms ease-out; scale 1.6 to 1, blur 2px to 0, opacity 0 to 1, keeps rotate(var(--r))", "purpose": "The only entrance animation; one per outcome cell." },
-      { "name": "dim", "value": "opacity 0.35, 160ms ease-out, pointer-events none", "purpose": "Everything but the active sheet while a form runs." },
-      { "name": "reduced-motion", "value": "all animation and transition disabled", "purpose": "prefers-reduced-motion: reduce." }
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Stamp landing, notice entrance and the directory dim."
+      },
+      {
+        "name": "stamp-in",
+        "value": "260ms",
+        "purpose": "A result stamp lands once: scale 1.6 to 1, blur 2px to 0. Off under reduced motion and on per-line stamps."
+      },
+      {
+        "name": "toast-in",
+        "value": "220ms",
+        "purpose": "A notice slides in from 24px right and fades up. Off under reduced motion."
+      },
+      {
+        "name": "spin",
+        "value": "800ms linear infinite",
+        "purpose": "The work-in-progress ring: one turn per 800ms."
+      },
+      {
+        "name": "dim",
+        "value": "160ms",
+        "purpose": "The directory fades to 40% while a tool writes to the PBX."
+      }
     ],
     "breakpoints": [
-      { "name": "window-min", "value": "1024px x 680px" },
-      { "name": "target", "value": "1366px x 768px, no horizontal scroll" }
+      {
+        "name": "steps-side-by-side",
+        "value": "1500px"
+      }
+    ],
+    "focus": [
+      {
+        "name": "default",
+        "value": "outline: 3px solid #0067a5; outline-offset: 2px"
+      },
+      {
+        "name": "control",
+        "value": "outline: 3px solid #ffd23f; outline-offset: 0"
+      },
+      {
+        "name": "on-sign",
+        "value": "outline-color: #ffd23f"
+      }
     ]
   },
   "components": [
     {
-      "name": "Primary Button",
+      "name": "Primary Button (numbered Aplicar)",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "The one primary action in the sticky action bar.",
-      "html": "<button class=\"ds-btn ds-btn-primary\">Guardar y probar</button>",
-      "css": ".ds-btn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border: 2px solid #233d7a; border-radius: 2px; background: #fbfcfd; color: #233d7a; font: 600 13px/1 'Barlow Semi Condensed', 'Arial Narrow', sans-serif; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; } .ds-btn:focus-visible { outline: 2px solid #5b3a9e; outline-offset: 2px; } .ds-btn-primary { background: #233d7a; color: #fbfcfd; } .ds-btn-primary:hover { background: #1a2f5c; }"
+      "description": "The one primary action per tool, in the action bar, led by its step number.",
+      "html": "<button class=\"ds-btn-primary\"><span class=\"ds-n\">4</span>Aplicar 1 498 PINes</button>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;gap:8px;height:48px;padding:0 20px 0 12px;border:2px solid var(--sign,#0067a5);border-radius:8px;background:var(--sign,#0067a5);color:#fff;font-family:var(--f,'Atkinson Hyperlegible Next Variable','Segoe UI',sans-serif);font-weight:800;font-size:16px;cursor:pointer}.ds-btn-primary:hover{background:var(--sign-hover,#00578c)}.ds-btn-primary:focus-visible{outline:3px solid var(--sign,#0067a5);outline-offset:2px}.ds-btn-primary:disabled{opacity:.45;cursor:default}.ds-n{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:#fff;color:var(--sign,#0067a5);font-size:14px;font-weight:800}"
     },
     {
       "name": "Secondary Button",
       "kind": "button",
       "refersTo": "button-secondary",
-      "description": "Default outlined button.",
-      "html": "<button class=\"ds-btn2\">Guardar</button>",
-      "css": ".ds-btn2 { display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border: 2px solid #233d7a; border-radius: 2px; background: #fbfcfd; color: #233d7a; font: 600 13px/1 'Barlow Semi Condensed', 'Arial Narrow', sans-serif; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; } .ds-btn2:hover { background: #233d7a0f; } .ds-btn2:focus-visible { outline: 2px solid #5b3a9e; outline-offset: 2px; }"
+      "description": "Every other action: white, 2px strong rule, blue border on hover.",
+      "html": "<button class=\"ds-btn\">Vista previa</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 16px;border:2px solid var(--rule-strong,#b9bcc0);border-radius:8px;background:#fff;color:var(--ink,#231f20);font-family:var(--f,'Atkinson Hyperlegible Next Variable','Segoe UI',sans-serif);font-weight:700;font-size:15px;cursor:pointer}.ds-btn:hover{border-color:var(--sign,#0067a5)}.ds-btn:focus-visible{outline:3px solid var(--sign,#0067a5);outline-offset:2px}.ds-btn:disabled{opacity:.45;cursor:default}"
     },
     {
-      "name": "Danger Button",
-      "kind": "button",
-      "refersTo": "button-danger",
-      "description": "Destructive action; second press within 4s confirms.",
-      "html": "<button class=\"ds-btn-danger\">Eliminar</button>",
-      "css": ".ds-btn-danger { display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border: 2px solid #c8202f; border-radius: 2px; background: #fbfcfd; color: #c8202f; font: 600 13px/1 'Barlow Semi Condensed', 'Arial Narrow', sans-serif; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; } .ds-btn-danger:hover { background: #233d7a0f; } .ds-btn-danger:focus-visible { outline: 2px solid #5b3a9e; outline-offset: 2px; }"
-    },
-    {
-      "name": "Ruled Field",
+      "name": "Input Field",
       "kind": "input",
-      "refersTo": "ruled-field",
-      "description": "A cell of the 6-column ruled form: printed label over a borderless input.",
-      "html": "<label class=\"ds-field\"><span class=\"ds-lbl\">Host (nombre o IP)</span><input placeholder=\"10.20.1.5\" /></label>",
-      "css": ".ds-field { display: grid; gap: 4px; width: 280px; padding: 6px 12px 7px; border: 1px solid #233d7a; border-top-width: 2px; background: #fbfcfd; } .ds-lbl { font: 600 11px/1 'Barlow Semi Condensed', 'Arial Narrow', sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: #233d7a; } .ds-field input { padding: 0; border: 0; background: transparent; font: 500 16px/1.3 'Barlow', 'Segoe UI', sans-serif; color: #16181d; caret-color: #5b3a9e; outline-offset: 4px; } .ds-field input::placeholder { color: #4a5f8f; font-style: italic; font-weight: 400; } .ds-field input:focus-visible { outline: 2px solid #5b3a9e; }"
+      "refersTo": "input",
+      "description": "Where to type: white, 44px, 2px sign-blue border at rest, yellow focus.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-name\">Archivo CSV</span><input class=\"ds-control\" placeholder=\"C:\\…\\pines.csv\"></label>",
+      "css": ".ds-field{display:grid;gap:6px;font-family:var(--f,'Atkinson Hyperlegible Next Variable','Segoe UI',sans-serif);color:var(--ink,#231f20)}.ds-field-name{font-weight:700;font-size:14px}.ds-control{height:44px;padding:0 12px;border:2px solid var(--sign,#0067a5);border-radius:8px;background:#fff;color:var(--ink,#231f20);font:inherit;font-weight:500;font-size:15px;caret-color:var(--sign,#0067a5)}.ds-control::placeholder{color:var(--mute,#5d5a5b);font-weight:400}.ds-control:focus-visible{outline:3px solid var(--lit,#ffd23f);outline-offset:0}"
     },
     {
-      "name": "Header Block",
+      "name": "Step Panel",
+      "kind": "card",
+      "refersTo": "step-panel",
+      "description": "A numbered sign for each thing to fill in; the lit variant marks the current step.",
+      "html": "<section class=\"ds-step\"><h2 class=\"ds-step-head\"><span class=\"ds-disc\">1</span>Lista de PIN</h2><p class=\"ds-hint\">Elija una lista de PIN.</p></section><section class=\"ds-step ds-lit\"><h2 class=\"ds-step-head\"><span class=\"ds-disc\">2</span>Archivo CSV</h2></section>",
+      "css": ".ds-step{padding:14px 16px 16px;margin-bottom:14px;border:2px solid var(--rule,#d9dadc);border-radius:12px;background:#fff;font-family:var(--f,'Atkinson Hyperlegible Next Variable','Segoe UI',sans-serif);color:var(--ink,#231f20)}.ds-step-head{display:flex;align-items:center;gap:10px;margin:0 0 12px;font-weight:800;font-size:16px}.ds-disc{display:inline-grid;place-items:center;flex:none;width:28px;height:28px;border-radius:50%;background:var(--sign,#0067a5);color:#fff;font-family:var(--f,'Atkinson Hyperlegible Next Variable','Segoe UI',sans-serif);font-weight:800;font-size:15px;line-height:1}.ds-hint{margin:0;color:var(--mute,#5d5a5b);font-size:13px}.ds-lit{border-color:var(--ink,#231f20)}.ds-lit .ds-disc{background:var(--lit,#ffd23f);color:var(--ink,#231f20)}"
+    },
+    {
+      "name": "Lit Preview",
       "kind": "custom",
-      "refersTo": "header-box",
-      "description": "Sticky work-order header: PBX, Host, Folio, Fecha.",
-      "html": "<div class=\"ds-head\"><div class=\"ds-box\"><span class=\"ds-l\">PBX</span><span class=\"ds-v\">Hospital General</span></div><div class=\"ds-box\"><span class=\"ds-l\">Host</span><span class=\"ds-v\">10.20.1.5</span></div><div class=\"ds-box\"><span class=\"ds-l\">Folio</span><span class=\"ds-v ds-folio\">Nº 0004</span></div><div class=\"ds-box\"><span class=\"ds-l\">Fecha</span><span class=\"ds-v\">07/10/2026</span></div></div>",
-      "css": ".ds-head { display: grid; grid-template-columns: 2fr 1.4fr 0.8fr 0.8fr; border: 2px solid #233d7a; background: #fbfcfd; font-variant-numeric: tabular-nums; } .ds-box { display: grid; gap: 6px; padding: 8px 12px 10px; border-left: 1px solid #233d7a; } .ds-box:first-child { border-left: 0; } .ds-l { font: 600 11px/1 'Barlow Semi Condensed', 'Arial Narrow', sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: #233d7a; } .ds-v { font: 500 17px/1.2 'Barlow', 'Segoe UI', sans-serif; color: #16181d; white-space: nowrap; } .ds-folio { color: #c8202f; font-weight: 600; }"
+      "refersTo": "preview-lit",
+      "description": "Step 3, lit yellow while it is the step you are on; secondary text tinted from the yellow.",
+      "html": "<section class=\"ds-review\"><div class=\"ds-bar\"><span class=\"ds-disc\">3</span><b>Revise la vista previa</b><span class=\"ds-sum\">1 498 nuevos · 2 ya existen</span></div><table class=\"ds-lines\"><tr><th>N°</th><th>PIN</th><th>Resultado</th></tr><tr><td class=\"ds-q\">0002</td><td><b>700000</b></td><td><b>Nuevo</b></td></tr><tr><td class=\"ds-q\">0005</td><td><b>700003</b></td><td class=\"ds-q\">Ya existe · se omite</td></tr></table></section>",
+      "css": ".ds-review{border:2px solid var(--ink,#231f20);border-radius:12px;background:var(--lit-soft,#fff4c7);overflow:clip;font-family:var(--f,'Atkinson Hyperlegible Next Variable','Segoe UI',sans-serif);color:var(--ink,#231f20);font-size:15px}.ds-bar{display:flex;align-items:center;gap:12px;height:54px;padding:0 16px;border-bottom:2px solid var(--ink,#231f20);background:var(--lit,#ffd23f);font-weight:800;font-size:16px}.ds-disc{display:inline-grid;place-items:center;flex:none;width:28px;height:28px;border-radius:50%;background:var(--sign,#0067a5);color:#fff;font-family:var(--f,'Atkinson Hyperlegible Next Variable','Segoe UI',sans-serif);font-weight:800;font-size:15px;line-height:1}.ds-bar .ds-disc{background:var(--ink,#231f20);color:var(--lit,#ffd23f)}.ds-sum{margin-left:auto;font-weight:700;font-size:14px}.ds-lines{width:100%;border-collapse:collapse}.ds-lines th{padding:9px 12px 8px 16px;border-bottom:1px solid var(--lit-rule,#ecdc96);color:var(--lit-mute,#6a5710);font-weight:700;font-size:12px;letter-spacing:.06em;text-transform:uppercase;text-align:left}.ds-lines td{padding:9px 12px 9px 16px;border-bottom:1px solid var(--lit-rule,#ecdc96)}.ds-q{color:var(--lit-mute,#6a5710)}"
     },
     {
-      "name": "Form Pad",
-      "kind": "nav",
-      "refersTo": "form-tab",
-      "description": "Tear-off pad: binding strip, perforated rows, active tab pulled into the sheet.",
-      "html": "<nav class=\"ds-pad\"><p class=\"ds-pad-name\">Utilidades<br>XORCOM</p><ol class=\"ds-forms\"><li><button class=\"ds-tab ds-on\"><span class=\"ds-code\">F-01</span><span>Conexiones</span></button></li><li><button class=\"ds-tab\"><span class=\"ds-code\">F-02</span><span>Extensiones</span></button></li></ol></nav>",
-      "css": ".ds-pad { width: 232px; padding: 20px 0 16px 20px; border-top: 10px solid #c8202f; background: #233d7a; color: #fbfcfd; } .ds-pad-name { margin: 0; font: 700 26px/0.95 'Barlow Semi Condensed', 'Arial Narrow', sans-serif; letter-spacing: 0.02em; text-transform: uppercase; } .ds-forms { margin: 28px 0 0; padding: 0; list-style: none; } .ds-forms li { border-bottom: 1px dashed rgb(255 255 255 / 0.28); } .ds-forms li:first-child { border-top: 1px dashed rgb(255 255 255 / 0.28); } .ds-tab { display: flex; align-items: baseline; gap: 12px; width: 100%; padding: 10px 16px 10px 12px; border: 0; border-radius: 2px 0 0 2px; background: none; color: #fbfcfd; text-align: left; cursor: pointer; font: 500 15px/1.2 'Barlow', 'Segoe UI', sans-serif; } .ds-tab:hover { background: rgb(255 255 255 / 0.08); } .ds-tab:focus-visible { outline: 2px solid #5b3a9e; outline-offset: 2px; } .ds-tab.ds-on { background: #fbfcfd; color: #233d7a; } .ds-code { font: 600 13px/1 'Barlow Semi Condensed', 'Arial Narrow', sans-serif; letter-spacing: 0.06em; }"
-    },
-    {
-      "name": "Stamp (Sello)",
+      "name": "Result Stamps",
       "kind": "custom",
       "refersTo": "stamp-ok",
-      "description": "Outcome stamp; violet success, failure ink on pink copy. Lands once, tilted per cell.",
-      "html": "<div class=\"ds-cells\"><div class=\"ds-cell\"><span class=\"ds-stamp\" style=\"--r:-3deg\">Conectado</span></div><div class=\"ds-cell ds-fail\"><span class=\"ds-stamp ds-bad\" style=\"--r:-1.5deg\">Falló</span></div></div>",
-      "css": ".ds-cells { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 2px solid #233d7a; } .ds-cell { min-height: 96px; padding: 20px 12px; border-right: 1px solid #233d7a; background: #fbfcfd; } .ds-fail { background: #f4c6cf; } .ds-stamp { display: inline-block; padding: 4px 10px 3px; border: 2px solid currentColor; border-radius: 3px; color: #5b3a9e; font: 700 16px/1 'Barlow Semi Condensed', 'Arial Narrow', sans-serif; letter-spacing: 0.14em; text-transform: uppercase; transform: rotate(var(--r, -3deg)); animation: ds-stamp-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both; } .ds-bad { color: #9f1526; } @keyframes ds-stamp-in { from { opacity: 0; filter: blur(2px); transform: rotate(var(--r, -3deg)) scale(1.6); } to { opacity: 1; filter: blur(0); transform: rotate(var(--r, -3deg)) scale(1); } } @media (prefers-reduced-motion: reduce) { .ds-stamp { animation: none; } }"
+      "description": "Inked caps that land once, slightly askew; green done, red failed; mini and static per line.",
+      "html": "<span class=\"ds-stamp\">Conectado</span> <span class=\"ds-stamp ds-bad\" style=\"--r:-1.5deg\">Falló</span> <span class=\"ds-stamp ds-mini\" style=\"--r:-4.5deg\">Aplicado</span>",
+      "css": ".ds-stamp{display:inline-block;padding:4px 10px 3px;border:2.5px solid currentColor;border-radius:4px;color:var(--ok,#1b7f4b);font-family:var(--f,'Atkinson Hyperlegible Next Variable','Segoe UI',sans-serif);font-weight:800;font-size:15px;line-height:1;letter-spacing:.12em;text-transform:uppercase;transform:rotate(var(--r,-3deg));animation:ds-stamp-in 260ms cubic-bezier(0.16,1,0.3,1) both}.ds-bad{color:var(--fail,#c8103e)}.ds-mini{padding:2px 6px 1px;border-width:2px;font-size:12px;letter-spacing:.1em;animation:none}@keyframes ds-stamp-in{from{opacity:0;filter:blur(2px);transform:rotate(var(--r,-3deg)) scale(1.6)}to{opacity:1;filter:blur(0);transform:rotate(var(--r,-3deg)) scale(1)}}@media (prefers-reduced-motion:reduce){.ds-stamp{animation:none}}"
     },
     {
-      "name": "Ledger",
+      "name": "PBX Sign Band",
       "kind": "custom",
-      "description": "Registered-profiles table: 2px ink top/bottom, hairline rows, state squares.",
-      "html": "<table class=\"ds-ledger\"><thead><tr><th></th><th>Nº</th><th>Nombre</th><th>Host</th></tr></thead><tbody><tr class=\"ds-editing\"><td><span class=\"ds-mark ds-filled\"></span></td><td class=\"ds-num\">01</td><td>Hospital General</td><td>10.20.1.5</td></tr><tr><td><span class=\"ds-mark\"></span></td><td class=\"ds-num\">02</td><td>Zona 9</td><td>10.20.4.2</td></tr></tbody></table>",
-      "css": ".ds-ledger { width: 100%; border-collapse: collapse; border-block: 2px solid #233d7a; font: 400 15px/1.4 'Barlow', 'Segoe UI', sans-serif; color: #16181d; font-variant-numeric: tabular-nums; } .ds-ledger th { padding: 6px 10px 5px; border-bottom: 1px solid #233d7a; text-align: left; font: 600 11px/1 'Barlow Semi Condensed', 'Arial Narrow', sans-serif; letter-spacing: 0.09em; text-transform: uppercase; color: #233d7a; } .ds-ledger td { padding: 9px 10px; border-bottom: 1px solid #c9d1e3; } .ds-ledger tbody tr:last-child td { border-bottom: 0; } .ds-editing td { background: #233d7a0f; } .ds-mark { display: block; width: 12px; height: 12px; border: 2px solid #233d7a; } .ds-filled { background: #233d7a; } .ds-num { width: 48px; color: #4a5f8f; font-weight: 500; }"
+      "refersTo": "pbx-sign",
+      "description": "Which PBX you are on, at 28px, as the switcher; channel chips with filled or hollow dots; a white \"Comunicando con la PBX…\" pill while a call is in flight. Never dims.",
+      "html": "<header class=\"ds-here\"><span class=\"ds-tile\"><svg width=\"28\" height=\"28\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5.5 3.5h3l1.8 4.6-2.3 1.5a11 11 0 0 0 6.4 6.4l1.5-2.3 4.6 1.8v3a2 2 0 0 1-2 2A16.5 16.5 0 0 1 3.5 5.5a2 2 0 0 1 2-2z\"/></svg></span><div><div class=\"ds-pbx\">PBX de prueba</div><div class=\"ds-where\"><code>127.0.0.1</code> · PBX activa</div></div><span class=\"ds-talking\" role=\"status\"><span class=\"ds-spin\"></span>Comunicando con la PBX…</span><ul class=\"ds-chans\"><li class=\"ds-off\"><span class=\"ds-dot\"></span>API</li><li><span class=\"ds-dot\"></span>SSH</li><li><span class=\"ds-dot\"></span>AMI</li></ul></header>",
+      "css": ".ds-here{display:flex;align-items:center;gap:16px;padding:14px 28px;background:var(--sign,#0067a5);color:#fff;font-family:var(--f,'Atkinson Hyperlegible Next Variable','Segoe UI',sans-serif);}.ds-tile{display:grid;place-items:center;width:50px;height:50px;border-radius:10px;background:#fff;color:var(--sign,#0067a5)}.ds-pbx{font-weight:800;font-size:28px;line-height:1.1;letter-spacing:-.01em}.ds-where{margin-top:2px;color:var(--on-band-2,#d9eaf5);font-size:14px}.ds-where code{font-family:var(--f-mono,'JetBrains Mono',Consolas,monospace);font-size:13px;color:#fff}.ds-chans{display:flex;gap:8px;margin:0;padding:0;list-style:none}.ds-chans li{display:flex;align-items:center;gap:7px;padding:6px 12px 6px 10px;border-radius:99px;background:rgb(255 255 255 / .14);font-weight:700;font-size:13px;line-height:1;letter-spacing:.04em}.ds-dot{width:9px;height:9px;border:2px solid currentColor;border-radius:50%;background:currentColor}.ds-chans li.ds-off{background:none;color:var(--on-band-2,#d9eaf5)}.ds-off .ds-dot{background:none}.ds-talking{display:inline-flex;align-items:center;gap:8px;margin-left:auto;padding:6px 12px;border-radius:99px;background:#fff;color:var(--sign,#0067a5);font-weight:700;font-size:13px;line-height:1;white-space:nowrap}.ds-spin{display:inline-block;flex:none;width:16px;height:16px;border:2.5px solid currentColor;border-right-color:transparent;border-radius:50%;animation:ds-spin 800ms linear infinite}@keyframes ds-spin{to{transform:rotate(1turn)}}@media (prefers-reduced-motion:reduce){.ds-spin{animation:none}}"
+    },
+    {
+      "name": "Directory Sign",
+      "kind": "nav",
+      "refersTo": "directory-sign",
+      "description": "Tools listed like a hospital floor directory on the logo charcoal, the logo blue/crimson pair as one split rule under the name; the current tool runs into the page.",
+      "html": "<nav class=\"ds-dir\"><p class=\"ds-brand\">Utilidades XORCOM<span>CompletePBX 5</span></p><button class=\"ds-tool\"><span class=\"ds-pict\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M9 2.5v4.5M15 2.5v4.5M6.5 7h11v3.5a5.5 5.5 0 0 1-11 0zM12 16v5.5\"/></svg></span><span class=\"ds-tn\">Conexiones</span><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M9 5.5l6.5 6.5L9 18.5\"/></svg></button><button class=\"ds-tool ds-on\" aria-current=\"page\"><span class=\"ds-pict\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"currentColor\" aria-hidden=\"true\"><circle cx=\"6\" cy=\"4\" r=\"1.6\"/><circle cx=\"12\" cy=\"4\" r=\"1.6\"/><circle cx=\"18\" cy=\"4\" r=\"1.6\"/><circle cx=\"6\" cy=\"10\" r=\"1.6\"/><circle cx=\"12\" cy=\"10\" r=\"1.6\"/><circle cx=\"18\" cy=\"10\" r=\"1.6\"/><circle cx=\"6\" cy=\"16\" r=\"1.6\"/><circle cx=\"12\" cy=\"16\" r=\"1.6\"/><circle cx=\"18\" cy=\"16\" r=\"1.6\"/><circle cx=\"12\" cy=\"21.5\" r=\"1.6\"/></svg></span><span class=\"ds-tn\">PINes masivos</span><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M9 5.5l6.5 6.5L9 18.5\"/></svg></button></nav>",
+      "css": ".ds-dir{width:220px;padding:22px 0 18px;background:var(--sign-deep,#231f20);color:#fff;font-family:var(--f,'Atkinson Hyperlegible Next Variable','Segoe UI',sans-serif);}.ds-brand{margin:0;padding:0 20px 20px;font-weight:800;font-size:18px;line-height:1.15}.ds-brand::after{content:\"\";display:block;width:56px;height:4px;margin-top:14px;border-radius:2px;background:linear-gradient(90deg,var(--brand-red,#ce1141) 50%,var(--brand-blue,#0072b1) 50%)}.ds-brand span{display:block;margin-top:4px;font-weight:500;font-size:13px;color:var(--on-sign-2,#d0cbcc)}.ds-tool{display:flex;align-items:center;gap:12px;width:100%;padding:12px 16px 12px 20px;border:0;border-top:1px solid var(--sign-line,#3b3536);background:none;color:var(--on-sign-2,#d0cbcc);font:inherit;font-weight:700;font-size:15px;text-align:left;cursor:pointer}.ds-tool:last-child{border-bottom:1px solid var(--sign-line,#3b3536)}.ds-tool:hover{color:#fff;background:rgb(255 255 255 / .06)}.ds-tool:focus-visible{outline:3px solid var(--lit,#ffd23f);outline-offset:2px}.ds-pict{display:grid;place-items:center;width:34px;height:34px;border-radius:8px;background:var(--sign-line,#3b3536);color:#fff}.ds-tn{flex:1}.ds-tool.ds-on{background:var(--ground,#f4f4f5);color:var(--ink,#231f20)}.ds-on .ds-pict{background:var(--sign,#0067a5)}"
+    },
+    {
+      "name": "Notice",
+      "kind": "custom",
+      "refersTo": "notice",
+      "description": "A problem the user must read: full border and wash, never a side stripe.",
+      "html": "<div class=\"ds-notice\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 3.5L21.5 20h-19zM12 10v4.5M12 17.4v.1\"/></svg><span>No se pudo leer las listas de PIN de la PBX.</span></div>",
+      "css": ".ds-notice{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border:2px solid var(--fail-rule,#eeabbb);border-radius:10px;background:var(--fail-soft,#fce4ea);color:var(--ink,#231f20);font-family:var(--f,'Atkinson Hyperlegible Next Variable','Segoe UI',sans-serif);font-size:15px}.ds-notice svg{flex:none;margin-top:1px;color:var(--fail,#c8103e)}"
+    },
+    {
+      "name": "Notices (toasts)",
+      "kind": "custom",
+      "refersTo": "toast",
+      "description": "Every action says how it ended, top right under the PBX sign: green ok, crimson fail, blue update with its lit action. The only shadow in the system.",
+      "html": "<div class=\"ds-toasts\"><div class=\"ds-toast ds-ok\" role=\"status\"><span class=\"ds-ico\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4.5 12.5l5 5 10-11\"/></svg></span><p class=\"ds-text\">PBX activa: PBX de prueba</p><button class=\"ds-close\" aria-label=\"Cerrar aviso\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 6l12 12M18 6L6 18\"/></svg></button></div><div class=\"ds-toast ds-update\" role=\"status\"><span class=\"ds-ico\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 3.5v11M7 10l5 5 5-5M4.5 19.5h15\"/></svg></span><p class=\"ds-text\">Nueva versión v1.4.0 disponible (tiene v1.3.2).</p><button class=\"ds-lit\">Actualizar y reiniciar</button><button class=\"ds-close\" aria-label=\"Cerrar aviso\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 6l12 12M18 6L6 18\"/></svg></button></div></div>",
+      "css": ".ds-toasts{display:grid;gap:10px;width:400px;font-family:var(--f,'Atkinson Hyperlegible Next Variable','Segoe UI',sans-serif)}.ds-toast{display:flex;align-items:center;gap:10px;padding:10px 10px 10px 12px;border:2px solid var(--rule-strong,#b9bcc0);border-radius:10px;background:#fff;color:var(--ink,#231f20);box-shadow:0 6px 18px rgb(35 31 32 / .16);animation:ds-toast-in 220ms cubic-bezier(0.16,1,0.3,1) both}.ds-ok{border-color:var(--ok,#1b7f4b)}.ds-ok .ds-ico{color:var(--ok,#1b7f4b)}.ds-fail{border-color:var(--fail,#c8103e);background:var(--fail-soft,#fce4ea)}.ds-fail .ds-ico{color:var(--fail,#c8103e)}.ds-update{flex-wrap:wrap;border-color:var(--sign,#0067a5);background:var(--sign,#0067a5);color:#fff}.ds-update .ds-close{color:#fff}.ds-ico{display:inline-flex;flex:none}.ds-text{flex:1;min-width:0;margin:0;font-size:14px;line-height:1.35;font-weight:600}.ds-lit{height:36px;padding:0 12px;border:2px solid var(--lit,#ffd23f);border-radius:8px;background:var(--lit,#ffd23f);color:var(--ink,#231f20);font:inherit;font-weight:700;font-size:14px;cursor:pointer}.ds-close{display:inline-grid;place-items:center;flex:none;width:32px;height:32px;padding:0;border:0;border-radius:8px;background:none;color:var(--mute,#5d5a5b);cursor:pointer}.ds-close:hover{background:rgb(35 31 32 / .08)}.ds-close:focus-visible,.ds-lit:focus-visible{outline:3px solid var(--sign,#0067a5);outline-offset:2px}.ds-update .ds-close:focus-visible,.ds-update .ds-lit:focus-visible{outline-color:var(--lit,#ffd23f)}@keyframes ds-toast-in{from{opacity:0;transform:translateX(24px)}}@media (prefers-reduced-motion:reduce){.ds-toast{animation:none}}"
     }
   ],
   "narrative": {
-    "northStar": "The Carbonless Work Order",
-    "overview": "Every PBX change is a numbered work order from a tear-off pad: printed in one spot ink on white copy, filled in with black data, numbered in red, and stamped in violet as each line lands. The interface is a sheet of ruled boxes, not a dashboard. Labels are what the printer put on the form (condensed caps in spot ink); values are what the technician filled in (Barlow in near-black, tabular figures). The copy color itself carries state: white is the working copy, canary is the preview copy, pink is the failure copy.\n\nDensity is that of a real form: tight ruled cells (12px side padding), 1px internal rules and 2px structural rules, no cards, no floating panels. One sheet is in focus at a time; while a form runs, everything except the active sheet steps back to 35% opacity. Motion exists only for the stamp landing. Light theme only, by decision (office-light scene); all UI copy is Spanish.\n\nThe world explicitly refuses the dark-sidebar SaaS dashboard of KPI cards. The dark ink column on the left is a tear-off pad with a glued binding edge, not a navigation rail.",
+    "northStar": "The Hospital Corridor",
+    "overview": "Every screen is signed the way a hospital signs its corridors. A charcoal directory sign on the left lists the tools like a floor directory; a Xorcom-blue band across the top names the PBX you are standing in, large enough to read from across the desk; numbered step panels say what to fill next, and the step you are on is lit yellow. Results land as inked stamps, the one physical mark carried over from the earlier world.\n\nThe palette is taken from the Xorcom logo, cleanly: its blue for signage, its charcoal wordmark for the directory and the ink, its crimson for failure, and its exact blue and red together only once, in a small split rule under the app name. The system is light, calm and dense enough for a technician at an office desk in a bright room. Color is functional only: blue means \"sign\" (where you are, what to press, where to type, what is happening), yellow means \"you are here, look now\", crimson means failure, green means done. It refuses the paper form and the card-grid admin panel, and it is never flashy or gamer-styled.\n\nThe corridor always says what is going on. While the app talks to the PBX, the PBX sign says so; the step at work says what it is doing; the button pressed shows the running verb; every action ends in a notice at the top right.",
     "keyCharacteristics": [
-      "One spot ink (#233d7a) for every rule, label, and printed element.",
-      "Copy color = state: white working, canary preview, pink failure.",
-      "Ruled grid fields: labels sit inside the cell above the value; borders are the structure.",
-      "Red is reserved for the folio number, the pad's binding edge, and destructive actions.",
-      "Violet is reserved for the sello (stamp), caret, and focus ring: the technician's own mark.",
-      "Flat. No shadows, no texture, no gradients."
+      "Light UI on a neutral off-white ground (#f4f4f5) with white step panels on 2px rules.",
+      "Two signs frame every tool: the charcoal directory sign (220px, left) and the blue PBX sign band (sticky, top).",
+      "Numbered step discs; the current step is lit; step 4 is always the Aplicar button.",
+      "Inputs are unmistakable: white, 44px, 2px sign-blue border at rest.",
+      "Outcomes are stamps: CONECTADO / FALLÓ per channel, APLICADO / FALLÓ per line, APLICADO / CON FALLAS per run.",
+      "Every action reports: a spinner and running verb while it works, a notice when it ends.",
+      "No folio numbers, run numbers or dates in the UI."
     ],
     "rules": [
-      { "name": "The Copy Color Rule", "body": "Background color changes only to signal which copy you are looking at: white working, canary preview, pink failure. Never use canary or pink as decoration or as a generic warning tint.", "section": "colors" },
-      { "name": "The Reserved Marks Rule", "body": "Red belongs to the folio, the binding edge, and destruction; violet belongs to the stamp and the technician's cursor/focus. Neither appears as a general accent.", "section": "colors" },
-      { "name": "The Printed vs. Filled Rule", "body": "If the form printer would have put it there, it is condensed caps in spot ink. If the technician or the PBX supplied it, it is Barlow sentence case in data ink. Never set data in caps or labels in sentence case.", "section": "typography" },
-      { "name": "The Tabular Rule", "body": "`font-variant-numeric: tabular-nums` is set on body; ports, ms, folio, and row numbers must line up.", "section": "typography" },
-      { "name": "The Flat Form Rule", "body": "No box-shadow, no texture, no gradient, no blur at rest. A layer is distinguished by a rule or by copy color, never by lift.", "section": "elevation" },
-      { "name": "The Two Weights Rule", "body": "Rules are 1px (internal cell divisions) or 2px (structure: header block frame, ledger top/bottom, form top, outcome bottom, action bar top, boxed form code, buttons, stamps). Light 1px hairline-colored rules are only for ledger rows.", "section": "elevation" }
+      {
+        "name": "The One Meaning Rule",
+        "body": "Yellow is only \"the step you are on\" and \"the preview to review\"; crimson is only failure; green is only done. No color is used for decoration.",
+        "section": "colors"
+      },
+      {
+        "name": "The Logo Pair Rule",
+        "body": "The logo's exact blue and crimson appear side by side in one place only: the split rule under the app name. Everywhere else the system uses the deepened Sign Blue and Xorcom Crimson, and crimson keeps its single meaning.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tinted-On-Yellow Rule",
+        "body": "Secondary text on yellow uses Lit Umber, never the grey Mute. On a failed row inside the preview, secondary text goes to Ink.",
+        "section": "colors"
+      },
+      {
+        "name": "The Light Desk Rule",
+        "body": "The UI is light (`color-scheme: light`): it is used at office desks in bright rooms. There is no dark theme; the only dark surface is the charcoal directory sign, and the only saturated fields are the blue PBX band and the update notice.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Family Rule",
+        "body": "Hierarchy comes from weight and size inside Atkinson Hyperlegible Next. Mono appears only for machine strings the user may have to compare character by character.",
+        "section": "typography"
+      },
+      {
+        "name": "The Window Foot Rule",
+        "body": "The action bar always sits at the window's foot, never floating mid-page after short content.",
+        "section": "layout"
+      },
+      {
+        "name": "The No Nested Box Rule",
+        "body": "Nothing boxed inside a step panel. Sub-areas (the three channel columns, the three outcomes) are split by 2px rules, not by inner cards.",
+        "section": "layout"
+      },
+      {
+        "name": "The Write Lock Rule",
+        "body": "Only writes to the PBX (Aplicar, the portal reload) lock the app: the directory dims to 40% and the PBX switcher disables. Reads (lists, preview, channel test, pending check) never lock navigation; leaving a tool drops its pending reads quietly.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat Sign Rule",
+        "body": "Signs and panels sit flat. Do not add shadows to show elevation; use a 2px rule or a sign color. Only a layer that floats over content (the notice stack) takes the floating-notice shadow.",
+        "section": "elevation"
+      }
     ],
     "dos": [
-      "**Do** draw structure with spot-ink rules: 2px for frames and section seams, 1px inside.",
-      "**Do** put labels inside ruled cells, condensed caps 11px 0.09em in spot ink, above the filled value.",
-      "**Do** report each outcome with its own stamp at its own tilt; success violet, failure in failure ink on pink copy.",
-      "**Do** keep the header block and action bar sticky and opaque white copy.",
-      "**Do** dim everything but the active sheet to 35% while a form runs.",
-      "**Do** keep text AA on every copy color (failure ink, not folio red, on pink).",
-      "**Do** write all UI copy in Spanish."
+      "**Do** keep every tool to one Svelte module plus one registry line (id, label, icon) in `frontend/src/modules.ts`; the directory sign builds itself from it.",
+      "**Do** number the steps and light only the current one; the preview is the only lit panel.",
+      "**Do** make every input a white 44px box with a 2px sign-blue border so it is always obvious where to type.",
+      "**Do** put the reason a primary action is disabled in the status note beside it.",
+      "**Do** report outcomes with stamps: CONECTADO / FALLÓ per channel, APLICADO / FALLÓ per line, APLICADO / CON FALLAS per run.",
+      "**Do** give every action feedback: a spinner and running verb while it works, a notice when it ends.",
+      "**Do** route every PBX call through the shared `talk()` wrapper so the PBX sign shows \"Comunicando con la PBX…\".",
+      "**Do** lock navigation only for PBX writes; reads never block leaving a tool.",
+      "**Do** split sub-areas inside a panel with 2px rules.",
+      "**Do** use Lit Umber for secondary text on yellow.",
+      "**Do** honor reduced motion: stamps, notices, spinners and transitions switch off."
     ],
     "donts": [
-      "**Don't** build a dark-sidebar SaaS dashboard with KPI cards, metric tiles, or floating cards.",
-      "**Don't** use shadows, paper texture, gradients, handwriting faces, or cream paper.",
-      "**Don't** use canary or pink for anything but the preview and failure copies (and selection highlight).",
-      "**Don't** use folio red or sello violet as general accents.",
-      "**Don't** set JetBrains Mono for anything but fingerprints, hashes, and paths.",
-      "**Don't** animate anything except the stamp landing and the busy dim.",
-      "**Don't** add a dark theme."
+      "**Don't** show folio numbers, run numbers or dates in the UI.",
+      "**Don't** use a dark theme, neon, glow or any flashy or gamer look.",
+      "**Don't** use the logo's exact blue and crimson anywhere but the brand rule under the app name.",
+      "**Don't** nest boxes inside a step panel.",
+      "**Don't** use grey secondary text on yellow.",
+      "**Don't** strike through a disabled channel; use a hollow dot.",
+      "**Don't** dim the PBX sign during a write.",
+      "**Don't** let the action bar float mid-page; it sits at the window foot.",
+      "**Don't** use colored side stripes on notices, rows or panels; use full borders and fills.",
+      "**Don't** use yellow, crimson or green for anything but lit, failure and done.",
+      "**Don't** add shadows to anything that sits in the page, or build a card grid; only floating notices carry a shadow."
     ]
   }
 }

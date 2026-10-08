@@ -1,14 +1,18 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { UpdateService } from '../bindings/github.com/skemono/Xorcom-Tools'
+  import Icon from './Icon.svelte'
   import { modules } from './modules'
-  import { app, reload, setActive, errText } from './state.svelte'
+  import Toasts from './Toasts.svelte'
+  import { app, reload, switchPBX, notify, dismiss, errText } from './state.svelte'
 
   let current = $state(modules[0])
-  // Height of the sticky header block, for sheets that pin their own headings under it.
+  // Height of the sticky PBX sign, for tools that pin their own headings under it.
   let headH = $state(0)
   const active = $derived(app.profiles.find((v) => v.profile.id === app.active)?.profile)
-  const today = new Date().toLocaleDateString('es-GT', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  const channels = $derived(
+    active ? [['API', active.api.enabled], ['SSH', active.ssh.enabled], ['AMI', active.ami.enabled]] as const : [],
+  )
 
   let version = $state('')
   type Update =
@@ -21,20 +25,31 @@
     upd = { s: 'checking' }
     try {
       const info = await UpdateService.Check()
-      upd = info.available ? { s: 'available', latest: info.latest } : { s: 'current' }
+      if (info.available) {
+        const latest = info.latest.startsWith('v') ? info.latest : `v${info.latest}`
+        upd = { s: 'available', latest }
+        notify('update', `Nueva versión ${latest} disponible (tiene ${version}).`, 0, { label: 'Actualizar y reiniciar', run: () => apply(latest) })
+      } else {
+        upd = { s: 'current' }
+        if (manual) notify('ok', `Ya tiene la versión más reciente (${version}).`)
+      }
     } catch (e) {
       // Offline at startup is normal; only a manual check reports the failure.
       upd = manual ? { s: 'error', msg: errText(e) } : { s: 'idle' }
+      if (manual) notify('fail', `No se pudo buscar actualizaciones: ${errText(e)}`)
     }
   }
 
   async function apply(latest: string) {
     upd = { s: 'applying', latest }
+    const id = notify('info', `Descargando ${latest}… la aplicación se reiniciará sola.`, 0)
     try {
       await UpdateService.Apply()
       await UpdateService.Restart()
     } catch (e) {
       upd = { s: 'error', msg: errText(e) }
+      dismiss(id)
+      notify('fail', `No se pudo actualizar: ${errText(e)}`)
     }
   }
 
@@ -45,25 +60,20 @@
   })
 </script>
 
-<div class="desk">
-  <nav class="pad" class:dim={app.busy} aria-label="Formularios">
-    <p class="pad-name">Utilidades<br />XORCOM</p>
-    <p class="pad-sub">Talonario de formularios<br />CompletePBX 5</p>
-    <ol class="forms">
+<div class="app">
+  <nav class="directory" class:dim={app.busy} aria-label="Herramientas">
+    <p class="brand">Utilidades XORCOM<span>CompletePBX 5</span></p>
+    <ul class="tools">
       {#each modules as m (m.id)}
         <li>
-          <button
-            class="form-tab"
-            class:on={m.id === current.id}
-            aria-current={m.id === current.id ? 'page' : undefined}
-            onclick={() => (current = m)}
-          >
-            <span class="code">{m.code}</span>
-            <span class="name">{m.label}</span>
+          <button class="tool" class:on={m.id === current.id} aria-current={m.id === current.id ? 'page' : undefined} onclick={() => (current = m)}>
+            <span class="pict"><Icon name={m.icon} /></span>
+            <span class="tool-name">{m.label}</span>
+            <Icon name="chevron-right" size={18} />
           </button>
         </li>
       {/each}
-    </ol>
+    </ul>
     <footer class="update" aria-live="polite">
       <span class="ver">{version === 'dev' ? 'Versión de desarrollo' : `Versión ${version}`}</span>
       {#if upd.s === 'checking'}
@@ -73,7 +83,7 @@
       {:else if upd.s === 'available'}
         {@const latest = upd.latest}
         <span>Nueva versión {latest} disponible</span>
-        <button class="btn canary small" onclick={() => apply(latest)}>Actualizar y reiniciar</button>
+        <button class="btn lit small" onclick={() => apply(latest)}><Icon name="download" size={18} />Actualizar y reiniciar</button>
       {:else if upd.s === 'applying'}
         <span>Descargando {upd.latest}…</span>
       {:else if upd.s === 'error'}
@@ -85,94 +95,103 @@
     </footer>
   </nav>
 
-  <main class="sheet" style:--head-h="{headH}px">
-    <div class="head-wrap" bind:offsetHeight={headH}>
-      <header class="head" class:dim={app.busy}>
-        <label class="box pbx">
-          <span class="lbl">PBX</span>
-          <select
-            value={app.active}
-            onchange={(e) => setActive(e.currentTarget.value)}
-            disabled={app.busy || app.profiles.length === 0}
-          >
-            {#if app.profiles.length === 0}<option value="">Sin perfiles</option>{/if}
+  <main class="view" style:--head-h="{headH}px">
+    <!-- You are here: the PBX every tool acts on, named large enough to read from across the desk. -->
+    <!-- Never dimmed: while a tool writes, which PBX it writes to matters most. -->
+    <header class="here" bind:offsetHeight={headH}>
+      <span class="pict"><Icon name="phone" size={28} /></span>
+      <div class="pbx">
+        <label class="switch">
+          <span class="sr">PBX activa</span>
+          <select value={app.active} onchange={(e) => switchPBX(e.currentTarget.value)} disabled={app.busy || app.profiles.length === 0}>
+            {#if app.profiles.length === 0}<option value="">Ninguna PBX registrada</option>{/if}
             {#each app.profiles as v (v.profile.id)}
               <option value={v.profile.id}>{v.profile.name}</option>
             {/each}
           </select>
+          {#if app.profiles.length > 1}<Icon name="chevron-down" size={22} />{/if}
         </label>
-        <div class="box"><span class="lbl">Host</span><span class="val">{active?.host ?? '—'}</span></div>
-        <div class="box folio">
-          <span class="lbl">Folio</span>
-          <span class="val">Nº {app.folio ? String(app.folio).padStart(4, '0') : '—'}</span>
-        </div>
-        <div class="box"><span class="lbl">Fecha</span><span class="val">{today}</span></div>
-      </header>
-    </div>
+        <p class="where">
+          {#if active}<code>{active.host}</code> · PBX activa{:else}Registre una PBX en Conexiones{/if}
+        </p>
+      </div>
+      {#if app.calls > 0}
+        <span class="talking" role="status"><span class="spin"></span>Comunicando con la PBX…</span>
+      {/if}
+      {#if active}
+        <ul class="chans" class:after-talk={app.calls > 0} aria-label="Canales">
+          {#each channels as [name, on] (name)}
+            <li class:off={!on}><span class="dot"></span>{name}<span class="sr">{on ? ' habilitado' : ' deshabilitado'}</span></li>
+          {/each}
+        </ul>
+      {/if}
+    </header>
     {#key current.id}
       <current.component />
     {/key}
+    <Toasts />
   </main>
 </div>
 
 <style>
-  .desk { display: grid; grid-template-columns: 232px minmax(0, 1fr); height: 100%; }
+  .app { display: grid; grid-template-columns: 220px minmax(0, 1fr); height: 100%; }
 
-  /* A tear-off pad, not a dashboard rail: glued binding strip on top, perforated stubs below. */
-  .pad {
-    display: flex; flex-direction: column; min-height: 0;
-    padding: 20px 0 16px 20px;
-    border-top: 10px solid var(--folio); /* the pad's glued edge, in folio red */
-    background: var(--ink); color: var(--paper);
+  /* The directory sign: tools listed like a hospital's floor directory. */
+  .directory { display: flex; flex-direction: column; min-height: 0; padding: 22px 0 18px; background: var(--sign-deep); color: var(--on-sign); }
+  .directory :focus-visible { outline-color: var(--lit); }
+  .brand { padding: 0 20px 20px; font: 800 18px/1.15 var(--f); }
+  .brand span { display: block; margin-top: 4px; font-weight: 500; font-size: 13px; color: var(--on-sign-2); }
+  /* The logo's two colors as one short rule under the name: the only place they appear as a pair. */
+  .brand::after { content: ''; display: block; width: 56px; height: 4px; margin-top: 14px; background: linear-gradient(90deg, var(--brand-red) 50%, var(--brand-blue) 50%); }
+  .tools { flex: 1; margin: 0; padding: 0; list-style: none; }
+  .tool {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    padding: 12px 16px 12px 20px; border: 0; border-top: 1px solid var(--sign-line);
+    background: none; color: var(--on-sign-2); font-weight: 700; text-align: left; cursor: pointer;
   }
-  .pad::before { content: ''; display: block; height: 2px; margin: -20px 0 18px -20px; background: var(--paper); }
-  .forms li { border-bottom: 1px dashed rgb(255 255 255 / 0.28); }
-  .forms li:first-child { border-top: 1px dashed rgb(255 255 255 / 0.28); }
-  .pad-name { font: 700 26px/0.95 var(--f-label); letter-spacing: 0.02em; text-transform: uppercase; }
-  .pad-sub {
-    margin-top: 10px; padding-right: 20px;
-    font: 500 12px/1.3 var(--f-label); letter-spacing: 0.06em; text-transform: uppercase;
-    color: #c5cde0;
-  }
-  .forms { flex: 1; margin: 28px 0 0; padding: 0; list-style: none; }
-  .form-tab {
-    display: flex; align-items: baseline; gap: 12px; width: 100%;
-    padding: 10px 16px 10px 12px;
-    border: 0; border-radius: 2px 0 0 2px;
-    background: none; color: var(--paper); text-align: left; cursor: pointer;
-  }
-  .form-tab:hover { background: rgb(255 255 255 / 0.08); }
-  /* The pulled sheet: the active tab is paper and runs into the page. */
-  .form-tab.on { background: var(--paper); color: var(--ink); }
-  .code { font: 600 13px/1 var(--f-label); letter-spacing: 0.06em; }
-  .name { font: 500 15px/1.2 var(--f-data); }
+  .tools li:last-child .tool { border-bottom: 1px solid var(--sign-line); }
+  .tool:hover { color: var(--on-sign); background: rgb(255 255 255 / 0.06); }
+  .pict { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 8px; background: var(--sign-line); color: var(--on-sign); }
+  .tool-name { flex: 1; }
+  /* The lit entry: the tool you are in runs into the page. */
+  .tool.on { background: var(--ground); color: var(--ink); }
+  .tool.on .pict { background: var(--sign); }
 
-  .update { display: grid; gap: 6px; padding-right: 20px; font-size: 12px; line-height: 1.35; }
-  .ver { font: 600 11px/1 var(--f-label); letter-spacing: 0.09em; text-transform: uppercase; color: #c5cde0; }
-  .err { color: var(--pink); }
+  .update { display: grid; gap: 8px; padding: 0 20px; font-size: 13px; line-height: 1.35; color: var(--on-sign-2); }
+  .ver { font-weight: 700; color: var(--on-sign); }
+  .err { color: var(--fail-on-sign); }
   .update .btn { justify-self: start; }
   .link-light {
     justify-self: start; padding: 0; border: 0; background: none; cursor: pointer;
-    color: var(--paper); font-size: 12px; text-decoration: underline; text-underline-offset: 3px;
+    color: var(--on-sign); font-size: 13px; text-decoration: underline; text-underline-offset: 3px;
   }
 
-  .sheet { overflow-y: auto; min-width: 0; }
-  /* Paper margin under the block: scrolled content fades into paper, never against the rule. */
-  .head-wrap { position: sticky; top: 0; z-index: 2; padding: 18px 32px 12px; background: var(--paper); }
-  .head {
-    display: grid;
-    grid-template-columns: minmax(200px, 2fr) minmax(150px, 1.4fr) minmax(110px, 0.8fr) minmax(110px, 0.8fr);
-    border: 2px solid var(--ink);
+  .view { overflow-y: auto; min-width: 0; }
+  .here {
+    position: sticky; top: 0; z-index: 3;
+    display: flex; align-items: center; gap: 16px;
+    padding: 14px 28px; background: var(--sign); color: var(--on-sign);
   }
-  .box { display: grid; gap: 6px; min-width: 0; padding: 8px 12px 10px; border-left: 1px solid var(--ink); }
-  .box:first-child { border-left: 0; }
-  .val { overflow: hidden; font: 500 17px/1.2 var(--f-data); white-space: nowrap; text-overflow: ellipsis; }
-  .folio .val { color: var(--folio); font-weight: 600; }
-  .pbx select {
-    width: 100%; min-width: 0; padding: 0 22px 0 0;
-    border: 0; appearance: none; cursor: pointer;
-    background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23233d7a' stroke-width='2'/%3E%3C/svg%3E") right center no-repeat;
-    font: 600 17px/1.2 var(--f-data); color: var(--data);
+  .here :focus-visible { outline-color: var(--lit); }
+  .here .pict { width: 50px; height: 50px; border-radius: 10px; background: var(--on-sign); color: var(--sign); }
+  .pbx { min-width: 0; }
+  .switch { display: flex; align-items: center; gap: 6px; }
+  .switch select {
+    min-width: 0; max-width: 100%; padding: 0; border: 0; appearance: none; cursor: pointer;
+    background: transparent; color: var(--on-sign);
+    font: 800 28px/1.1 var(--f); letter-spacing: -0.01em; text-overflow: ellipsis;
   }
-  .pbx select:disabled { background-image: none; cursor: default; }
+  .switch select:disabled { opacity: 1; color: var(--on-sign); cursor: default; }
+  .switch option { color: var(--ink); background: var(--panel); font-size: 15px; font-weight: 500; }
+  .where { margin-top: 2px; color: var(--on-band-2); font-size: 14px; }
+  .where code { font-size: 13px; color: var(--on-sign); }
+  .chans { display: flex; gap: 8px; margin: 0 0 0 auto; padding: 0; list-style: none; }
+  .chans.after-talk { margin-left: 16px; }
+  /* The sign says when the app is talking to this PBX, so a slow PBX never looks like a frozen app. */
+  .talking { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; padding: 6px 12px; border-radius: 99px; background: var(--on-sign); color: var(--sign); font: 700 13px/1 var(--f); white-space: nowrap; }
+  .chans li { display: flex; align-items: center; gap: 7px; padding: 6px 12px 6px 10px; border-radius: 99px; background: rgb(255 255 255 / 0.14); font: 700 13px/1 var(--f); letter-spacing: 0.04em; }
+  /* Enabled: a filled dot. Disabled: a hollow dot, dimmed (never struck through: that reads as failed). */
+  .dot { width: 9px; height: 9px; border: 2px solid currentColor; border-radius: 50%; background: currentColor; }
+  .chans li.off { background: none; color: var(--on-band-2); }
+  .chans li.off .dot { background: none; }
 </style>
