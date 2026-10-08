@@ -18,6 +18,8 @@
   --lit-mute: #6a5710;   /* secondary text on yellow, tinted from it (6.4:1 on lit-soft) */
   --fail: #c62828;
   --fail-soft: #fbe1df;
+  --fail-rule: #e8aaa6;   /* the rule around a danger button or a notice */
+  --fail-on-sign: #ffc9c4; /* failure text on the dark sign */
   --ok: #1b7f4b;
   --f: 'Atkinson Hyperlegible Next Variable', 'Segoe UI', sans-serif;
   --f-mono: 'JetBrains Mono', Consolas, monospace;
@@ -89,7 +91,7 @@ select.control:disabled { background-color: var(--ground); cursor: default; }
 .btn.primary { height: 48px; padding: 0 20px 0 12px; border-color: var(--sign); background: var(--sign); color: var(--on-sign); font-size: 16px; font-weight: 800; }
 .btn.primary:hover { background: var(--sign-hover); }
 .btn.primary .disc { width: 26px; height: 26px; background: var(--on-sign); color: var(--sign); font-size: 14px; }
-.btn.danger { border-color: #e3a4a0; color: var(--fail); }
+.btn.danger { border-color: var(--fail-rule); color: var(--fail); }
 .btn.danger:hover { border-color: var(--fail); }
 .btn.lit { border-color: var(--lit); background: var(--lit); color: var(--ink); }
 .btn.small { height: 36px; padding: 0 12px; font-size: 14px; }
@@ -108,9 +110,9 @@ select.control:disabled { background-color: var(--ground); cursor: default; }
 .check input { width: 18px; height: 18px; margin: 0; accent-color: var(--sign); cursor: pointer; }
 
 /* A problem the user must read: full rule, never a side stripe. */
-.notice { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border: 2px solid #eab0ac; border-radius: 10px; background: var(--fail-soft); }
+.notice { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border: 2px solid var(--fail-rule); border-radius: 10px; background: var(--fail-soft); }
 .notice svg { flex: none; margin-top: 1px; color: var(--fail); }
-.notice code { font-size: 12px; }
+.notice code { font-size: 13px; }
 
 /* A tool fills the window below the PBX sign, so its action bar sits at the window's foot even on a short page. */
 .page { display: flex; flex-direction: column; min-height: calc(100% - var(--head-h, 0px)); }

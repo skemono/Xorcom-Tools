@@ -22,6 +22,8 @@ colors:
   fail: "#c62828"
   fail-soft: "#fbe1df"
   ok: "#1b7f4b"
+  fail-rule: "#e8aaa6"
+  fail-on-sign: "#ffc9c4"
 typography:
   display:
     fontFamily: "Atkinson Hyperlegible Next Variable, Segoe UI, sans-serif"
@@ -62,6 +64,12 @@ typography:
     fontWeight: 800
     lineHeight: 1
     letterSpacing: "0.12em"
+  stamp-mini:
+    fontFamily: "Atkinson Hyperlegible Next Variable, Segoe UI, sans-serif"
+    fontSize: "12px"
+    fontWeight: 800
+    lineHeight: 1
+    letterSpacing: "0.1em"
   mono:
     fontFamily: "JetBrains Mono, Consolas, monospace"
     fontSize: "13px"
@@ -227,7 +235,7 @@ A sign-teal and white wayfinding palette on a cool neutral ground, with exactly 
 - **Headline** (800, 26px, 1.15): the tool's page title, followed by one lead line (max 72ch, Mute).
 - **Title** (800, 16px, 1.2): step heads, the preview bar title, registry and section heads; primary button text.
 - **Body** (400, 15px, 1.45): everything else; input values at 500.
-- **Label** (700, 14px, 1.2): field names. Table column heads are 700 12px uppercase at 0.06em, a column label, not a section kicker.
+- **Label** (700, 14px, 1.2): field names. Table column heads are 700 13px uppercase at 0.06em, a column label, not a section kicker.
 - **Hint** (400, 13px, 1.4): format hints under inputs, versions, timings.
 - **Stamp** (800, 15px, 0.12em, uppercase): result stamps; 12px / 0.1em for per-line stamps.
 

@@ -359,7 +359,7 @@
 
   .format { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 18px; align-items: start; margin-top: 14px; padding: 12px 16px; border: 2px dashed var(--rule-strong); border-radius: 12px; }
   .format-head { grid-column: 1 / -1; font: 800 15px/1.2 var(--f); }
-  .sample { margin: 0; padding: 8px 12px; border-radius: 6px; background: var(--panel); font: 400 12px/1.5 var(--f-mono); }
+  .sample { margin: 0; padding: 8px 12px; border-radius: 6px; background: var(--panel); font: 400 13px/1.5 var(--f-mono); }
 
   /* Step 3: the preview, lit yellow while it is the step you are on. */
   .review { margin-top: 14px; border: 2px solid var(--rule); border-radius: 12px; background: var(--panel); overflow: clip; }
@@ -390,7 +390,7 @@
   .lines th {
     position: sticky; top: calc(var(--head-h, 0px) + 54px); z-index: 1;
     padding: 9px 12px 8px 16px; border-bottom: 1px solid var(--rule); background: var(--panel);
-    color: var(--mute); font: 700 12px/1 var(--f); letter-spacing: 0.06em; text-transform: uppercase; text-align: left;
+    color: var(--mute); font: 700 13px/1 var(--f); letter-spacing: 0.06em; text-transform: uppercase; text-align: left;
   }
   .review.lit .lines th { border-bottom-color: var(--lit-rule); background: var(--lit-soft); }
   .lines td { padding: 9px 12px 9px 16px; border-bottom: 1px solid var(--rule); vertical-align: middle; overflow-wrap: anywhere; }

@@ -141,7 +141,7 @@
 
   .update { display: grid; gap: 8px; padding: 0 20px; font-size: 13px; line-height: 1.35; color: var(--on-sign-2); }
   .ver { font-weight: 700; color: var(--on-sign); }
-  .err { color: #ffc9c4; }
+  .err { color: var(--fail-on-sign); }
   .update .btn { justify-self: start; }
   .link-light {
     justify-self: start; padding: 0; border: 0; background: none; cursor: pointer;

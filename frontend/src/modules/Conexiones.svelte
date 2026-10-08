@@ -332,6 +332,6 @@
   .msg { font-size: 14px; line-height: 1.4; }
   .outcome.fail .msg { color: var(--fail); }
   .ms { color: var(--mute); font-size: 13px; white-space: nowrap; }
-  .fp { max-width: 100%; font-size: 11px; line-height: 1.45; word-break: break-all; }
+  .fp { max-width: 100%; font-size: 13px; line-height: 1.45; word-break: break-all; }
 </style>
 
