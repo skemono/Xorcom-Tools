@@ -338,6 +338,22 @@ func TestInsertSQLEscapes(t *testing.T) {
 	}
 }
 
+// A PBX that never answers must fail within the SSH dial timeout, not Windows' 21 s connect timeout.
+func TestSSHDialGivesUpAtItsTimeout(t *testing.T) {
+	old := sshDialTimeout
+	sshDialTimeout = 300 * time.Millisecond
+	defer func() { sshDialTimeout = old }()
+	p := Profile{Host: "10.255.255.1", SSH: SSHConfig{Enabled: true, Port: 22, User: "root"}} // TEST-NET: blackholed or unreachable
+	start := time.Now()
+	_, err := SSHExec(context.Background(), p, "pw", "", "true", nil)
+	if err == nil {
+		t.Fatal("dial to a blackholed host must fail")
+	}
+	if took := time.Since(start); took > 3*time.Second {
+		t.Fatalf("waited %v; the dial timeout must bound it (%v)", took, err)
+	}
+}
+
 func TestInsertSQLProgressMarkers(t *testing.T) {
 	rows := make([]PinRow, 250)
 	for i := range rows {

@@ -19,6 +19,8 @@
     <path d="M5.5 9l6.5 6.5L18.5 9" />
   {:else if name === 'arrow-right'}
     <path d="M4.5 12h15M13.5 6l6 6-6 6" />
+  {:else if name === 'x'}
+    <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />
   {:else if name === 'alert'}
     <path d="M12 3.5L21.5 20h-19zM12 10v4.5M12 17.4v.1" />
   {:else if name === 'refresh'}

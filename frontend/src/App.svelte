@@ -3,7 +3,8 @@
   import { UpdateService } from '../bindings/github.com/skemono/Xorcom-Tools'
   import Icon from './Icon.svelte'
   import { modules } from './modules'
-  import { app, reload, setActive, errText } from './state.svelte'
+  import Toasts from './Toasts.svelte'
+  import { app, reload, switchPBX, notify, dismiss, errText } from './state.svelte'
 
   let current = $state(modules[0])
   // Height of the sticky PBX sign, for tools that pin their own headings under it.
@@ -24,20 +25,31 @@
     upd = { s: 'checking' }
     try {
       const info = await UpdateService.Check()
-      upd = info.available ? { s: 'available', latest: info.latest } : { s: 'current' }
+      if (info.available) {
+        const latest = info.latest.startsWith('v') ? info.latest : `v${info.latest}`
+        upd = { s: 'available', latest }
+        notify('update', `Nueva versión ${latest} disponible (tiene ${version}).`, 0, { label: 'Actualizar y reiniciar', run: () => apply(latest) })
+      } else {
+        upd = { s: 'current' }
+        if (manual) notify('ok', `Ya tiene la versión más reciente (${version}).`)
+      }
     } catch (e) {
       // Offline at startup is normal; only a manual check reports the failure.
       upd = manual ? { s: 'error', msg: errText(e) } : { s: 'idle' }
+      if (manual) notify('fail', `No se pudo buscar actualizaciones: ${errText(e)}`)
     }
   }
 
   async function apply(latest: string) {
     upd = { s: 'applying', latest }
+    const id = notify('info', `Descargando ${latest}… la aplicación se reiniciará sola.`, 0)
     try {
       await UpdateService.Apply()
       await UpdateService.Restart()
     } catch (e) {
       upd = { s: 'error', msg: errText(e) }
+      dismiss(id)
+      notify('fail', `No se pudo actualizar: ${errText(e)}`)
     }
   }
 
@@ -91,7 +103,7 @@
       <div class="pbx">
         <label class="switch">
           <span class="sr">PBX activa</span>
-          <select value={app.active} onchange={(e) => setActive(e.currentTarget.value)} disabled={app.busy || app.profiles.length === 0}>
+          <select value={app.active} onchange={(e) => switchPBX(e.currentTarget.value)} disabled={app.busy || app.profiles.length === 0}>
             {#if app.profiles.length === 0}<option value="">Ninguna PBX registrada</option>{/if}
             {#each app.profiles as v (v.profile.id)}
               <option value={v.profile.id}>{v.profile.name}</option>
@@ -103,8 +115,11 @@
           {#if active}<code>{active.host}</code> · PBX activa{:else}Registre una PBX en Conexiones{/if}
         </p>
       </div>
+      {#if app.calls > 0}
+        <span class="talking" role="status"><span class="spin"></span>Comunicando con la PBX…</span>
+      {/if}
       {#if active}
-        <ul class="chans" aria-label="Canales">
+        <ul class="chans" class:after-talk={app.calls > 0} aria-label="Canales">
           {#each channels as [name, on] (name)}
             <li class:off={!on}><span class="dot"></span>{name}<span class="sr">{on ? ' habilitado' : ' deshabilitado'}</span></li>
           {/each}
@@ -114,6 +129,7 @@
     {#key current.id}
       <current.component />
     {/key}
+    <Toasts />
   </main>
 </div>
 
@@ -125,6 +141,8 @@
   .directory :focus-visible { outline-color: var(--lit); }
   .brand { padding: 0 20px 20px; font: 800 18px/1.15 var(--f); }
   .brand span { display: block; margin-top: 4px; font-weight: 500; font-size: 13px; color: var(--on-sign-2); }
+  /* The logo's two colors as one short rule under the name: the only place they appear as a pair. */
+  .brand::after { content: ''; display: block; width: 56px; height: 4px; margin-top: 14px; border-radius: 2px; background: linear-gradient(90deg, var(--brand-red) 50%, var(--brand-blue) 50%); }
   .tools { flex: 1; margin: 0; padding: 0; list-style: none; }
   .tool {
     display: flex; align-items: center; gap: 12px; width: 100%;
@@ -165,12 +183,15 @@
   }
   .switch select:disabled { opacity: 1; color: var(--on-sign); cursor: default; }
   .switch option { color: var(--ink); background: var(--panel); font-size: 15px; font-weight: 500; }
-  .where { margin-top: 2px; color: var(--on-sign-2); font-size: 14px; }
+  .where { margin-top: 2px; color: var(--on-band-2); font-size: 14px; }
   .where code { font-size: 13px; color: var(--on-sign); }
   .chans { display: flex; gap: 8px; margin: 0 0 0 auto; padding: 0; list-style: none; }
+  .chans.after-talk { margin-left: 16px; }
+  /* The sign says when the app is talking to this PBX, so a slow PBX never looks like a frozen app. */
+  .talking { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; padding: 6px 12px; border-radius: 99px; background: var(--on-sign); color: var(--sign); font: 700 13px/1 var(--f); white-space: nowrap; }
   .chans li { display: flex; align-items: center; gap: 7px; padding: 6px 12px 6px 10px; border-radius: 99px; background: rgb(255 255 255 / 0.14); font: 700 13px/1 var(--f); letter-spacing: 0.04em; }
   /* Enabled: a filled dot. Disabled: a hollow dot, dimmed (never struck through: that reads as failed). */
   .dot { width: 9px; height: 9px; border: 2px solid currentColor; border-radius: 50%; background: currentColor; }
-  .chans li.off { background: none; color: var(--on-sign-2); }
+  .chans li.off { background: none; color: var(--on-band-2); }
   .chans li.off .dot { background: none; }
 </style>

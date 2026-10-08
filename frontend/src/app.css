@@ -1,25 +1,29 @@
 :root {
-  --sign: #0e4d64;       /* sign panels: the PBX band, primary actions, step numbers, input borders */
-  --sign-hover: #0b4256;
-  --sign-deep: #0a3a4c;  /* the directory sign (navigation) */
-  --sign-line: #1d5468;  /* rules on the dark sign */
+  /* From the Xorcom logo: its blue, its crimson and its charcoal wordmark. */
+  --brand-blue: #0072b1;  /* the logo's own values: only the brand rule under the name uses them */
+  --brand-red: #ce1141;
+  --sign: #0067a5;       /* Xorcom blue, a step deeper for white text (6:1): PBX band, primary actions, step numbers, input borders */
+  --sign-hover: #00578c;
+  --sign-deep: #231f20;  /* the logo's charcoal: the directory sign (navigation) */
+  --sign-line: #3b3536;  /* rules and tiles on the charcoal sign */
   --on-sign: #ffffff;
-  --on-sign-2: #c3dae2;  /* secondary text on the dark sign */
-  --ground: #f3f5f6;
+  --on-sign-2: #d0cbcc;  /* secondary text on the charcoal sign */
+  --on-band-2: #d9eaf5;  /* secondary text on the blue PBX band (4.9:1) */
+  --ground: #f4f4f5;
   --panel: #ffffff;
-  --tint: #e6eff2;       /* the selected row */
-  --ink: #12202b;
-  --mute: #56656f;       /* secondary text, AA on ground, panel, lit-soft and fail-soft */
-  --rule: #d5dde1;
-  --rule-strong: #b7c4cb;
+  --tint: #e3eff8;       /* the selected row */
+  --ink: #231f20;
+  --mute: #5d5a5b;       /* secondary text, AA on ground, panel, lit-soft and fail-soft */
+  --rule: #d9dadc;
+  --rule-strong: #b9bcc0;
   --lit: #ffd23f;        /* where you are: the current step and the preview, nothing else */
   --lit-soft: #fff4c7;
   --lit-rule: #ecdc96;
   --lit-mute: #6a5710;   /* secondary text on yellow, tinted from it (6.4:1 on lit-soft) */
-  --fail: #c62828;
-  --fail-soft: #fbe1df;
-  --fail-rule: #e8aaa6;   /* the rule around a danger button or a notice */
-  --fail-on-sign: #ffc9c4; /* failure text on the dark sign */
+  --fail: #c8103e;       /* Xorcom crimson, a step deeper for text (5.8:1 on white) */
+  --fail-soft: #fce4ea;
+  --fail-rule: #eeabbb;   /* the rule around a danger button or a notice */
+  --fail-on-sign: #ffc2cf; /* failure text on the charcoal sign */
   --ok: #1b7f4b;
   --f: 'Atkinson Hyperlegible Next Variable', 'Segoe UI', sans-serif;
   --f-mono: 'JetBrains Mono', Consolas, monospace;
@@ -75,7 +79,7 @@ h1 { font: 800 26px/1.15 var(--f); letter-spacing: -0.01em; }
 .control:disabled { border-color: var(--rule); background: var(--ground); color: var(--mute); }
 select.control {
   appearance: none; padding-right: 36px; cursor: pointer;
-  background: var(--panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9'%3E%3Cpath d='M1.5 1.5l5.5 5.5 5.5-5.5' fill='none' stroke='%230e4d64' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") right 13px center no-repeat;
+  background: var(--panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9'%3E%3Cpath d='M1.5 1.5l5.5 5.5 5.5-5.5' fill='none' stroke='%230067a5' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") right 13px center no-repeat;
 }
 select.control:disabled { background-color: var(--ground); cursor: default; }
 .control.mono { font: 400 13px/1 var(--f-mono); }
@@ -145,9 +149,20 @@ select.control:disabled { background-color: var(--ground); cursor: default; }
   to { opacity: 1; filter: blur(0); transform: rotate(var(--r, -3deg)) scale(1); }
 }
 
+/* Work in progress: a ring that turns while the app waits on the PBX or a file. */
+.spin {
+  display: inline-block; flex: none; width: 16px; height: 16px;
+  border: 2.5px solid currentColor; border-right-color: transparent; border-radius: 50%;
+  animation: spin 800ms linear infinite;
+}
+@keyframes spin { to { transform: rotate(1turn); } }
+/* A line that says what is happening right now, next to where it happens. */
+.doing { display: inline-flex; align-items: center; gap: 8px; color: var(--sign); font-size: 14px; font-weight: 700; }
+
 /* While a tool runs, the directory steps back (the PBX sign never dims: which PBX is being written matters most). */
 .dim { opacity: 0.4; pointer-events: none; transition: opacity 160ms var(--ease-out); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+.step-head .doing { color: var(--sign); font-weight: 700; }

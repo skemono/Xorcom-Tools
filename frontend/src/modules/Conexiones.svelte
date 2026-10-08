@@ -3,7 +3,7 @@
   import { ProfileService } from '../../bindings/github.com/skemono/Xorcom-Tools'
   import type { ChannelResult, Profile, Secrets } from '../../bindings/github.com/skemono/Xorcom-Tools/pbx'
   import Icon from '../Icon.svelte'
-  import { app, reload, setActive, errText } from '../state.svelte'
+  import { app, reload, switchPBX, errText, notify, talk } from '../state.svelte'
 
   const blank = (): Profile => ({
     id: '', name: '', host: '',
@@ -18,6 +18,9 @@
   let results = $state<ChannelResult[]>([])
   let note = $state('')
   let confirmDelete = $state(false)
+  // What this tool is doing right now (never locks navigation).
+  let doing = $state<'' | 'saving' | 'testing' | 'trusting' | 'deleting'>('')
+  const idle = $derived(!doing && !app.busy)
   const has = $derived(app.profiles.find((v) => v.profile.id === form.id)?.has)
 
   function edit(id: string) {
@@ -49,35 +52,46 @@
   })
 
   async function save(): Promise<boolean> {
+    doing = 'saving'
     try {
       const p = await ProfileService.Save($state.snapshot(form), $state.snapshot(secrets))
       await reload()
       edit(p.id)
       note = 'Perfil guardado.'
+      notify('ok', `PBX guardada: ${p.name}.`)
       return true
     } catch (e) {
       note = errText(e)
+      notify('fail', `No se pudo guardar: ${errText(e)}`, 10000)
       await reload()
       return false
+    } finally {
+      doing = ''
     }
   }
 
   async function runTest() {
     if (!form.id) return
     const id = form.id
-    app.busy = true
+    doing = 'testing'
     results = []
     try {
-      const res = (await ProfileService.Test(id)) ?? []
+      const res = (await talk(ProfileService.Test(id))) ?? []
       if (form.id !== id) return // the sheet changed under the test: never stamp A's results on B
       results = res
       await tick()
       // Let the technician watch the stamps land without scrolling by hand.
       document.querySelector('.outcomes')?.scrollIntoView({ block: 'center' })
+      const tried = res.filter((r) => !r.skipped)
+      const ok = tried.filter((r) => r.ok).length
+      if (tried.length === 0) notify('info', 'No hay canales habilitados para probar.')
+      else if (ok === tried.length) notify('ok', `Prueba terminada: ${ok === 1 ? 'el canal conectó' : `los ${ok} canales conectaron`}.`)
+      else notify('fail', `Prueba terminada: ${ok} de ${tried.length} canales conectaron. Vea el detalle en el paso 3.`, 10000)
     } catch (e) {
       note = errText(e)
+      notify('fail', `No se pudo probar: ${errText(e)}`, 10000)
     } finally {
-      app.busy = false
+      doing = ''
     }
   }
 
@@ -86,14 +100,20 @@
   }
 
   async function trust(r: ChannelResult) {
+    doing = 'trusting'
     try {
       await ProfileService.TrustFingerprint(form.id, r.channel, r.fingerprint)
       await reload()
       edit(form.id)
-      await runTest()
+      notify('ok', 'Huella guardada como confiable. Probando de nuevo…')
     } catch (e) {
       note = errText(e)
+      notify('fail', `No se pudo guardar la huella: ${errText(e)}`, 10000)
+      return
+    } finally {
+      doing = ''
     }
+    await runTest()
   }
 
   async function remove() {
@@ -102,13 +122,19 @@
       setTimeout(() => (confirmDelete = false), 4000)
       return
     }
+    const name = form.name
+    doing = 'deleting'
     try {
       await ProfileService.Delete(form.id)
       await reload()
       fresh()
       note = 'Perfil eliminado.'
+      notify('ok', `PBX eliminada: ${name}.`)
     } catch (e) {
       note = errText(e)
+      notify('fail', `No se pudo eliminar: ${errText(e)}`, 10000)
+    } finally {
+      doing = ''
     }
   }
 
@@ -121,7 +147,7 @@
     <span class="out-name">{title}</span>
     {#if !enabled}
       <span class="pending">Deshabilitado</span>
-    {:else if app.busy && !r}
+    {:else if doing === 'testing' && !r}
       <span class="pending">Probando…</span>
     {:else if !r}
       <span class="pending">Sin probar</span>
@@ -156,12 +182,12 @@
     <ul class="ledger">
       {#each app.profiles as v (v.profile.id)}
         <li class:editing={v.profile.id === form.id}>
-          <button class="name" onclick={() => edit(v.profile.id)} disabled={app.busy}>{v.profile.name}</button>
+          <button class="name" onclick={() => edit(v.profile.id)} disabled={!idle}>{v.profile.name}</button>
           <code class="host">{v.profile.host}</code>
           {#if v.profile.id === app.active}
             <span class="active-pill"><Icon name="check" size={16} />Activa</span>
           {:else}
-            <button class="btn small" onclick={() => setActive(v.profile.id)} disabled={app.busy}>Usar</button>
+            <button class="btn small" onclick={() => switchPBX(v.profile.id)} disabled={!idle}>Usar</button>
           {/if}
         </li>
       {:else}
@@ -262,7 +288,8 @@
     </section>
 
     <section class="step">
-      <h2 class="step-head"><span class="disc">3</span>Prueba de conexión<span class="aside">«Guardar y probar» la ejecuta</span></h2>
+      <h2 class="step-head"><span class="disc">3</span>Prueba de conexión
+        {#if doing === 'testing'}<span class="aside doing"><span class="spin"></span>Probando los canales…</span>{:else}<span class="aside">«Guardar y probar» la ejecuta</span>{/if}</h2>
       <!-- Three separate impressions, never one stamp pasted thrice. -->
       <div class="outcomes">
         {@render outcome('api', 'API', form.api.enabled, '-3deg')}
@@ -273,13 +300,15 @@
   </form>
 
   <div class="actions">
-    <button class="btn primary" type="submit" form="perfil" disabled={app.busy}><span class="disc">3</span>Guardar y probar</button>
-    <button class="btn" type="button" onclick={save} disabled={app.busy}>Guardar</button>
+    <button class="btn primary" type="submit" form="perfil" disabled={!idle}>
+      {#if doing === 'testing' || doing === 'trusting'}<span class="spin"></span>Probando…{:else if doing === 'saving'}<span class="spin"></span>Guardando…{:else}<span class="disc">3</span>Guardar y probar{/if}
+    </button>
+    <button class="btn" type="button" onclick={save} disabled={!idle}>Guardar</button>
     {#if form.id}
-      <button class="btn" type="button" onclick={fresh} disabled={app.busy}>Nueva PBX</button>
+      <button class="btn" type="button" onclick={fresh} disabled={!idle}>Nueva PBX</button>
       <!-- Two-step: the second click of a double-click (detail 2) must never confirm. -->
-      <button class="btn danger" type="button" onclick={(e) => e.detail <= 1 && remove()} disabled={app.busy}>
-        {confirmDelete ? 'Confirmar: eliminar' : 'Eliminar'}
+      <button class="btn danger" type="button" onclick={(e) => e.detail <= 1 && remove()} disabled={!idle}>
+        {#if doing === 'deleting'}<span class="spin"></span>Eliminando…{:else}{confirmDelete ? 'Confirmar: eliminar' : 'Eliminar'}{/if}
       </button>
     {/if}
     <span class="note" role="status">{note}</span>

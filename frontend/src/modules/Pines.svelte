@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { untrack } from 'svelte'
+  import { onDestroy, untrack } from 'svelte'
   import { Events } from '@wailsio/runtime'
   import { PinService } from '../../bindings/github.com/skemono/Xorcom-Tools'
   import type { PinApplyResult, PinPreview } from '../../bindings/github.com/skemono/Xorcom-Tools'
   import type { PinList, PinRow } from '../../bindings/github.com/skemono/Xorcom-Tools/pbx'
   import Icon from '../Icon.svelte'
-  import { app, errText } from '../state.svelte'
+  import { app, errText, notify, talk } from '../state.svelte'
 
   // From the lab verification (plan Task 1); see the ledger rulings.
   const NEEDS_PORTAL_APPLY = true // unverified (no outbound route on the lab, by user choice): always offer it
@@ -30,11 +30,14 @@
   let reloading = $state(false)
   let done = $state<number | null>(null)
   let secs = $state(0)
+  // A read in flight (never locks navigation): the PIN lists, a preview, the pending-changes check.
+  let reading = $state<'' | 'lists' | 'preview' | 'pending'>('')
+  const idle = $derived(!app.busy && !reading)
 
   const rows = $derived<PinRow[]>((result?.rows ?? preview?.rows) ?? [])
   // Thousands of lines: let the user see only the ones that need a look (adjusted descriptions included).
   const shown = $derived(onlyIssues ? rows.filter((r) => (r.status !== 'nuevo' && r.status !== 'aplicado') || r.filtered) : rows)
-  const canApply = $derived(!!preview && !result && preview.errors === 0 && preview.new > 0 && !app.busy)
+  const canApply = $derived(!!preview && !result && preview.errors === 0 && preview.new > 0 && idle)
   const sepName = (s: string) => (s === 'tab' ? 'tabulador' : `«${s}»`)
   // Thousands grouped with a narrow no-break space, as on printed forms; Spanish plurals.
   const NNBSP = String.fromCharCode(0x202f)
@@ -47,29 +50,40 @@
   const tilts = ['-3deg', '-1.5deg', '-4.5deg']
   // Why Aplicar is not available yet, said next to it.
   const waiting = $derived(
-    result ? '' : !listID ? 'Elija una lista de PIN.' : !preview ? 'Elija un archivo CSV para ver la vista previa.'
+    reading === 'lists' ? 'Leyendo las listas de PIN de la PBX…' : reading === 'preview' ? 'Preparando la vista previa…'
+      : result ? '' : !listID ? 'Elija una lista de PIN.' : !preview ? 'Elija un archivo CSV para ver la vista previa.'
       : preview.errors > 0 ? 'Corrija el archivo y vuelva a cargarlo: hay filas con error.'
       : preview.new === 0 ? 'No hay PINes nuevos para aplicar.' : '',
   )
   // The step you are on is lit: 1 list, 2 file, 3 review, 5 reload (4 is the Aplicar button).
   const lit = $derived(!listID ? 1 : !preview ? 2 : !result ? 3 : NEEDS_PORTAL_APPLY && result.applied > 0 && !portalMsg ? 5 : 0)
 
-  async function loadLists() {
+  // Only the newest list request may land: a PBX switch mid-read must not show the old PBX's lists.
+  let listSeq = 0
+  onDestroy(() => listSeq++) // a tab you left drops its pending lists quietly (no stale notice)
+  async function loadLists(manual = false) {
+    const mine = ++listSeq
     listsError = ''
     discard()
     if (!app.active) {
       lists = []
+      reading = ''
       return
     }
-    app.busy = true
+    reading = 'lists'
     try {
-      lists = (await PinService.Lists()) ?? []
+      const got = (await talk(PinService.Lists())) ?? []
+      if (mine !== listSeq) return
+      lists = got
       if (!lists.some((l) => l.id === listID)) listID = lists[0]?.id ?? 0
+      if (manual) notify('ok', `${count(lists.length, 'lista leída', 'listas leídas')} de la PBX.`)
     } catch (e) {
+      if (mine !== listSeq) return
       lists = []
       listsError = errText(e)
+      notify('fail', `No se pudieron leer las listas de PIN: ${errText(e)}`, 10000)
     } finally {
-      app.busy = false
+      if (mine === listSeq) reading = ''
     }
   }
 
@@ -92,22 +106,25 @@
       }
     } catch (e) {
       note = errText(e)
+      notify('fail', `No se pudo abrir el selector de archivos: ${errText(e)}`, 10000)
     }
   }
 
   async function runPreview() {
     if (!listID || !path.trim()) return
-    app.busy = true
+    reading = 'preview'
     note = ''
     result = null
     preview = null
     try {
-      preview = await PinService.Preview(listID, path.trim(), includeEmpty)
+      preview = await talk(PinService.Preview(listID, path.trim(), includeEmpty))
       onlyIssues = preview.errors > 0
+      if (preview.errors > 0) notify('fail', `El archivo tiene ${count(preview.errors, 'fila con error', 'filas con error')}: corríjalo y vuelva a cargarlo.`, 10000)
     } catch (e) {
       note = errText(e)
+      notify('fail', `No se pudo preparar la vista previa: ${errText(e)}`, 10000)
     } finally {
-      app.busy = false
+      reading = ''
     }
   }
 
@@ -127,10 +144,13 @@
     const stop = tick()
     const off = Events.On('pines:avance', (e) => (done = e.data as number))
     try {
-      result = await PinService.Apply(listID)
-      lists = (await PinService.Lists()) ?? lists // refreshed counts
+      result = await talk(PinService.Apply(listID))
+      if (result.failed) notify('fail', `Aplicado con fallas: ${count(result.failed, 'PIN falló', 'PINes fallaron')}. Revise las filas en rojo.`)
+      else notify('ok', `${count(result.applied, 'PIN aplicado', 'PINes aplicados')} en la lista Nº ${listID}.`)
+      lists = (await talk(PinService.Lists())) ?? lists // refreshed counts
     } catch (e) {
       note = errText(e)
+      notify('fail', `No se pudo aplicar: ${errText(e)}`)
     } finally {
       off()
       stop()
@@ -153,15 +173,15 @@
   // The first step also checks for changes someone else saved in the portal and never applied.
   async function reloadPBX() {
     if (!confirmReload) {
-      app.busy = true
+      reading = 'pending'
       pendingNote = ''
       try {
-        otherPending = await PinService.PendingPortalChanges()
+        otherPending = await talk(PinService.PendingPortalChanges())
       } catch (e) {
         otherPending = null
         pendingNote = `No se pudo verificar si hay otros cambios pendientes: ${errText(e)}`
       } finally {
-        app.busy = false
+        reading = ''
       }
       confirmReload = true
       setTimeout(() => (confirmReload = false), 8000) // time to read the warning
@@ -173,9 +193,11 @@
     portalMsg = ''
     const stop = tick()
     try {
-      portalMsg = await PinService.ApplyPortal()
+      portalMsg = await talk(PinService.ApplyPortal())
+      notify('ok', `PBX recargada: ${portalMsg}`)
     } catch (e) {
       portalMsg = errText(e)
+      notify('fail', `No se pudo recargar la PBX: ${errText(e)}`)
     } finally {
       stop()
       reloading = false
@@ -197,30 +219,37 @@
 
   {#if listsError}
     <p class="notice"><Icon name="alert" /><span>{listsError}</span></p>
-  {:else if app.active && lists.length === 0 && !app.busy}
+  {:else if app.active && lists.length === 0 && !reading}
     <p class="hint empty-lists">La PBX activa no tiene listas de PIN. Créela en el portal y presione Actualizar.</p>
   {/if}
 
   <div class="inputs">
     <section class="step" class:lit={lit === 1}>
-      <h2 class="step-head"><span class="disc">1</span>Lista de PIN{#if listID}<span class="ok"><Icon name="check" /></span>{/if}</h2>
+      <h2 class="step-head"><span class="disc">1</span>Lista de PIN{#if listID && reading !== 'lists'}<span class="ok"><Icon name="check" /></span>{/if}
+        {#if reading === 'lists'}<span class="aside doing"><span class="spin"></span>Leyendo listas de la PBX…</span>{/if}</h2>
       <div class="row">
         <label class="sr" for="pin-list">Lista de PIN</label>
-        <select id="pin-list" class="control" bind:value={listID} onchange={discard} disabled={app.busy || lists.length === 0}>
+        <select id="pin-list" class="control" bind:value={listID} onchange={discard} disabled={!idle || lists.length === 0}>
+          {#if reading === 'lists' && lists.length === 0}<option value={0}>Cargando listas…</option>{/if}
           {#each lists as l (l.id)}
             <option value={l.id}>Nº {l.id} · {l.description} ({count(l.entries, 'PIN', 'PINes')})</option>
           {/each}
         </select>
-        <button class="btn" onclick={loadLists} disabled={app.busy || !app.active} title="Volver a leer las listas de la PBX"><Icon name="refresh" size={18} />Actualizar</button>
+        <button class="btn" onclick={() => loadLists(true)} disabled={!idle || !app.active} title="Volver a leer las listas de la PBX">
+          {#if reading === 'lists'}<span class="spin"></span>Leyendo…{:else}<Icon name="refresh" size={18} />Actualizar{/if}
+        </button>
       </div>
     </section>
     <section class="step" class:lit={lit === 2}>
-      <h2 class="step-head"><span class="disc">2</span>Archivo CSV{#if preview}<span class="ok"><Icon name="check" /></span>{/if}</h2>
+      <h2 class="step-head"><span class="disc">2</span>Archivo CSV{#if preview}<span class="ok"><Icon name="check" /></span>{/if}
+        {#if reading === 'preview'}<span class="aside doing"><span class="spin"></span>Leyendo el archivo y comparando con la PBX…</span>{/if}</h2>
       <div class="row">
         <label class="sr" for="csv-path">Archivo CSV</label>
-        <input id="csv-path" class="control mono" bind:value={path} onchange={runPreview} placeholder="C:\…\pines.csv" spellcheck="false" disabled={app.busy} />
-        <button class="btn" onclick={pick} disabled={app.busy || !listID}><Icon name="folder" size={18} />Elegir…</button>
-        <button class="btn" onclick={runPreview} disabled={app.busy || !listID || !path.trim()}>Vista previa</button>
+        <input id="csv-path" class="control mono" bind:value={path} onchange={runPreview} placeholder="C:\…\pines.csv" spellcheck="false" disabled={!idle} />
+        <button class="btn" onclick={pick} disabled={!idle || !listID}><Icon name="folder" size={18} />Elegir…</button>
+        <button class="btn" onclick={runPreview} disabled={!idle || !listID || !path.trim()}>
+          {#if reading === 'preview'}<span class="spin"></span>Leyendo…{:else}Vista previa{/if}
+        </button>
       </div>
       {#if preview}
         <p class="hint detected">
@@ -269,7 +298,7 @@
         {/if}
       </div>
       <div class="toggles">
-        <label class="check"><input type="checkbox" bind:checked={includeEmpty} onchange={runPreview} disabled={app.busy || !!result} /> Incluir PINes sin descripción</label>
+        <label class="check"><input type="checkbox" bind:checked={includeEmpty} onchange={runPreview} disabled={!idle || !!result} /> Incluir PINes sin descripción</label>
         <label class="check"><input type="checkbox" bind:checked={onlyIssues} /> Solo filas a revisar</label>
         {#if onlyIssues}<span class="tag">Mostrando {fmt(shown.length)} de {count(rows.length, 'fila', 'filas')}</span>{/if}
       </div>
@@ -316,8 +345,8 @@
         <p class="reload-why">Para asegurar que la PBX use los PINes nuevos, aplique los cambios. Esto recarga la PBX y aplica también cualquier otro cambio pendiente del portal.</p>
         <div class="reload-row">
           <!-- Two-step: the second click of a double-click (detail 2) must never confirm. -->
-          <button class="btn" class:confirm={confirmReload} onclick={(e) => e.detail <= 1 && reloadPBX()} disabled={app.busy}>
-            <Icon name="reload" size={18} />{confirmReload ? 'Confirmar: recargar la PBX' : 'Aplicar cambios en la PBX'}
+          <button class="btn" class:confirm={confirmReload} onclick={(e) => e.detail <= 1 && reloadPBX()} disabled={!idle}>
+            {#if reading === 'pending'}<span class="spin"></span>Verificando cambios pendientes…{:else if reloading}<span class="spin"></span>Recargando la PBX…{:else}<Icon name="reload" size={18} />{confirmReload ? 'Confirmar: recargar la PBX' : 'Aplicar cambios en la PBX'}{/if}
           </button>
           {#if reloading}
             <span class="tag" role="status">Recargando la PBX… {secs} s</span>
@@ -336,10 +365,10 @@
 
   <div class="actions">
     <button class="btn primary" onclick={apply} disabled={!canApply}>
-      <span class="disc">4</span>{preview && !result ? `Aplicar ${count(preview.new, 'PIN', 'PINes')}` : 'Aplicar'}
+      {#if applying}<span class="spin"></span>Aplicando…{:else}<span class="disc">4</span>{preview && !result ? `Aplicar ${count(preview.new, 'PIN', 'PINes')}` : 'Aplicar'}{/if}
     </button>
     {#if preview}
-      <button class="btn" onclick={discard} disabled={app.busy}>{result ? 'Nueva carga' : 'Descartar'}</button>
+      <button class="btn" onclick={discard} disabled={!idle}>{result ? 'Nueva carga' : 'Descartar'}</button>
     {/if}
     <span class="note" role="status">{note || waiting}</span>
   </div>
