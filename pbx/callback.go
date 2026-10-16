@@ -124,7 +124,7 @@ exten => s,1,NoOp(Callback request for queue ${QUEUE_NUMBER})
  same => n,GotoIf($["${num}"="" | "${FILTER(0-9,${num})}"!="${num}" | "${QUEUE_NUMBER}"=""]?done)
  same => n,Set(id=${MASTER_CHANNEL(UNIQUEID)})
  same => n,Set(DB(${DB(pbx/instance)}/callback/${QUEUE_NUMBER}/${id})=${num})
- same => n,System(printf 'Channel: Local/«prefix»${num}@cos-all\nWaitTime: «ring»\nExtension: s\nContext: callback_out\nMaxRetries: «retries»\nRetryTime: «retry»\nSetvar: CHANNEL(language)=${CHANNEL(language)}\nSetvar: __QUEUE_NUMBER=${QUEUE_NUMBER}\nSetvar: __ORIGINAL_INTERNAL_CID="«name»" <${num}>\n' > ${ASTSPOOLDIR}/${id}.call)
+ same => n,System(printf 'Channel: Local/«prefix»${num}@cos-all\nCallerID: "«name»" <${QUEUE_NUMBER}>\nWaitTime: «ring»\nExtension: s\nContext: callback_out\nMaxRetries: «retries»\nRetryTime: «retry»\nSetvar: CHANNEL(language)=${CHANNEL(language)}\nSetvar: __QUEUE_NUMBER=${QUEUE_NUMBER}\nSetvar: __ORIGINAL_INTERNAL_CID="«name»" <${num}>\n' > ${ASTSPOOLDIR}/${id}.call)
  same => n,Set(FILE(/var/log/cpbx/callback.log,,,al)=${STRFTIME(${EPOCH},,%F %T)},${id},${QUEUE_NUMBER},${num})
 «playback»
  same => n(done),Return()

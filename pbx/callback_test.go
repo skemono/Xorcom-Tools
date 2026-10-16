@@ -925,8 +925,26 @@ func TestPortalDeleteInUse(t *testing.T) {
 	srv, calls := recPortalReplies(t, `{"state":"success","dialog":"modal-module-errors","html":"<p>Cannot remove this object, it is used as destination by X</p>"}`,
 		`{"state":"success","dialog":"<p>Cannot remove this object, it is used as destination by X</p>"}`)
 	err := openFake(t, srv).deleteApp(context.Background(), 7)
-	if err == nil || !strings.Contains(err.Error(), "Cannot remove this object") || len(*calls) != 1 {
-		t.Fatalf("in use must fail with the portal's text and one request: %v, %d", err, len(*calls))
+	if err == nil || !strings.Contains(err.Error(), "Cannot remove this object") || strings.Contains(err.Error(), "modal-module") || len(*calls) != 1 {
+		t.Fatalf("in use must fail with the portal's text only and one request: %v, %d", err, len(*calls))
+	}
+}
+
+func TestPortalDeleteRefusesDuplicateField(t *testing.T) {
+	var r map[string]string
+	json.Unmarshal([]byte(deleteModal(t, "7")), &r)
+	r["html"] = strings.Replace(r["html"], `<button`, `<input type="hidden" value="8" name="data"><button`, 1)
+	b, _ := json.Marshal(r)
+	srv, calls := recPortalReplies(t, string(b))
+	if err := openFake(t, srv).deleteApp(context.Background(), 7); err == nil || len(*calls) != 1 {
+		t.Fatalf("a duplicate data field must be refused without posting: %v, %d", err, len(*calls))
+	}
+}
+
+func TestCheckReplyCapsDialogText(t *testing.T) {
+	err := checkReply(portalReply{State: "success", Dialog: json.RawMessage(`"modal-module-errors"`), HTML: "<p>" + strings.Repeat("x", 1000) + "</p>"})
+	if err == nil || strings.Contains(err.Error(), "modal-module") || len([]rune(err.Error())) > 400 {
+		t.Fatalf("want capped text without the modal name: %d runes, %v", len([]rune(err.Error())), err)
 	}
 }
 

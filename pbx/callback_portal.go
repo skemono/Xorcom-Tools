@@ -436,13 +436,15 @@ func (cp *CallbackPortal) del(ctx context.Context, class string, id int) error {
 	return err
 }
 
+// hasFieldValue: name occurs exactly once and holds val (a duplicate could smuggle a second value).
 func hasFieldValue(f [][2]string, name, val string) bool {
+	n, ok := 0, false
 	for _, kv := range f {
-		if kv[0] == name && kv[1] == val {
-			return true
+		if kv[0] == name {
+			n, ok = n+1, kv[1] == val
 		}
 	}
-	return false
+	return n == 1 && ok
 }
 
 // formFields returns what a browser's new FormData(form) would send for the form with id formID, in

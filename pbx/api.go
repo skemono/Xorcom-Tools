@@ -151,7 +151,15 @@ func PortalApplyChanges(ctx context.Context, p Profile, password string) (string
 	return r.Notification.Text, nil
 }
 
-var htmlTag = regexp.MustCompile(`<[^>]*>`)
+var (
+	htmlTag   = regexp.MustCompile(`<[^>]*>`)
+	modalName = regexp.MustCompile(`^modal-[a-z-]+$`)
+)
+
+// plainText is s without tags or entities, whitespace collapsed.
+func plainText(s string) string {
+	return strings.Join(strings.Fields(html.UnescapeString(htmlTag.ReplaceAllString(s, " "))), " ")
+}
 
 // checkReply turns a refused module request into an error: a dialog (even with state "success") or any
 // state but "success", carrying the portal's own text.
@@ -161,10 +169,18 @@ func checkReply(r portalReply) error {
 		if json.Unmarshal(r.Dialog, &s) == nil {
 			d = s
 		}
-		if r.HTML != "" { // the dialog may only name the modal; its text is in html
-			d += " " + r.HTML
+		msg := plainText(d)
+		if h := plainText(r.HTML); h != "" { // the dialog may only name the modal; its text is in html
+			if modalName.MatchString(msg) {
+				msg = h
+			} else {
+				msg += " " + h
+			}
 		}
-		return fmt.Errorf("el portal rechazó el cambio: %s", strings.Join(strings.Fields(html.UnescapeString(htmlTag.ReplaceAllString(d, " "))), " "))
+		if rs := []rune(msg); len(rs) > 300 { // a whole page in html must not flood the step line
+			msg = string(rs[:300]) + "…"
+		}
+		return fmt.Errorf("el portal rechazó el cambio: %s", msg)
 	}
 	if r.State != "success" {
 		reason := r.Notification.Text

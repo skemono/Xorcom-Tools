@@ -23,6 +23,7 @@
   let done = $state(0)
   let reading = $state<'' | 'state' | 'preview' | 'pending'>('')
   let confirmReload = $state(false)
+  let confirmTimer: ReturnType<typeof setTimeout> | undefined
   let reloading = $state(false)
   let portalMsg = $state('')
   let otherPending = $state<boolean | null>(null)
@@ -56,7 +57,9 @@
   // A Quitar whose file step waits for the portal's Apply: deleting the file, or rewriting it.
   const fileWaits = $derived(mode === 'remove' && !!preview?.plan.fileWaits)
   const waitsDelete = $derived(!!preview?.plan.steps?.some((s) => s.kind === 'delfile'))
-  const lit = $derived(!st?.hasCC ? 0 : !canPreview ? 3 : !preview ? 4 : !result ? 5 : result.applied > 0 && !portalMsg ? 6 : 0)
+  // The log, the waiting list and a file delete need no portal Apply; everything else does.
+  const needsReload = $derived(!!result?.steps?.some((s) => s.status === 'aplicado' && !['log', 'dropwaiting', 'delfile'].includes(s.kind)))
+  const lit = $derived(!st?.hasCC ? 0 : !canPreview ? 3 : !preview ? 4 : !result ? 5 : needsReload && !portalMsg ? 6 : 0)
   const tilts = ['-3deg', '-1.5deg', '-4.5deg']
 
   // Only the newest read may land: a PBX switch mid-read must not show the old PBX.
@@ -154,6 +157,7 @@
     note = ''
     portalMsg = ''
     confirmReload = false
+    clearTimeout(confirmTimer)
     otherPending = null
     pendingNote = ''
   }
@@ -183,10 +187,12 @@
         reading = ''
       }
       confirmReload = true
-      setTimeout(() => (confirmReload = false), 8000)
+      clearTimeout(confirmTimer)
+      confirmTimer = setTimeout(() => (confirmReload = false), 8000)
       return
     }
     confirmReload = false
+    clearTimeout(confirmTimer)
     app.busy = true
     reloading = true
     portalMsg = ''
@@ -388,7 +394,7 @@
         {/if}
       </section>
 
-      {#if result && result.applied > 0}
+      {#if needsReload}
         <section class="step reload" class:lit={lit === 6}>
           <h2 class="step-head"><span class="disc">6</span>Recargue la PBX{#if portalMsg && !reloading}<span class="ok"><Icon name="check" /></span>{/if}</h2>
           <p class="reload-why">Para asegurar que la PBX use los cambios, aplíquelos. Esto recarga la PBX y aplica también cualquier otro cambio pendiente del portal.</p>
