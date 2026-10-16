@@ -23,8 +23,7 @@ export function Apply(listID: number): $CancellablePromise<$models.PinApplyResul
 }
 
 /**
- * ApplyPortal runs the portal's own Apply with the profile's API credentials (F-01). It reloads
- * the PBX with ALL outstanding portal changes; the UI only calls it after a two-step confirmation.
+ * ApplyPortal and PendingPortalChanges live on ProfileService (F-02 and F-03 share them); these keep F-02's bindings.
  */
 export function ApplyPortal(): $CancellablePromise<string> {
     return $Call.ByID(3145290304);
@@ -34,10 +33,6 @@ export function Lists(): $CancellablePromise<pbx$0.PinList[] | null> {
     return $Call.ByID(2027479031);
 }
 
-/**
- * PendingPortalChanges reports whether a portal Apply would also push changes someone saved in the
- * portal and never applied (the portal's own Apply banner).
- */
 export function PendingPortalChanges(): $CancellablePromise<boolean> {
     return $Call.ByID(3249832180);
 }

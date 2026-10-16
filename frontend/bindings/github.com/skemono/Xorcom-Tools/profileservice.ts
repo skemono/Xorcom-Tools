@@ -18,6 +18,14 @@ import * as pbx$0 from "./pbx/models.js";
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
+/**
+ * ApplyPortal runs the portal's own Apply with the profile's API credentials (F-01). It reloads
+ * the PBX with ALL outstanding portal changes; the UI only calls it after a two-step confirmation.
+ */
+export function ApplyPortal(): $CancellablePromise<string> {
+    return $Call.ByID(1641428222);
+}
+
 export function Delete(id: string): $CancellablePromise<void> {
     return $Call.ByID(4049605311, id);
 }
@@ -31,6 +39,14 @@ export function List(): $CancellablePromise<$models.ProfilesView> {
  */
 export function NextFolio(): $CancellablePromise<number> {
     return $Call.ByID(952439514);
+}
+
+/**
+ * PendingPortalChanges reports whether a portal Apply would also push changes someone saved in the
+ * portal and never applied (the portal's own Apply banner).
+ */
+export function PendingPortalChanges(): $CancellablePromise<boolean> {
+    return $Call.ByID(1533589290);
 }
 
 /**

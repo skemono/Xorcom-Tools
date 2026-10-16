@@ -5,6 +5,37 @@
 // @ts-ignore: Unused imports
 import * as pbx$0 from "./pbx/models.js";
 
+export interface CallbackPreview {
+    "plan": pbx$0.CallbackPlan;
+
+    /**
+     * install: the trunk group that accepts the test number
+     */
+    "route": string;
+    "new": number;
+    "skip": number;
+    "blocked": number;
+}
+
+export interface CallbackResult {
+    "folio": number;
+    "steps": pbx$0.CallbackStep[] | null;
+    "applied": number;
+    "skipped": number;
+    "failed": number;
+    "notRun": number;
+}
+
+/**
+ * CallbackView is the Estado: the PBX state and the settings installed there (or the defaults).
+ */
+export interface CallbackView {
+    "state": pbx$0.CallbackState;
+    "queues": pbx$0.CallbackQueueView[] | null;
+    "config": pbx$0.CallbackConfig;
+    "installed": boolean;
+}
+
 export interface PinApplyResult {
     "folio": number;
     "rows": pbx$0.PinRow[] | null;

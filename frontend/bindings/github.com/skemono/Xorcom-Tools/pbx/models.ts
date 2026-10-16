@@ -37,6 +37,206 @@ export interface CSVInfo {
 }
 
 /**
+ * CallbackApp is a custom app with its destination resolved: DestKind is the destination category name
+ * (custom, queue_priority, …), DestIndex its row id, Custom the "context,exten,priority" of a Custom one.
+ */
+export interface CallbackApp {
+    "id": number;
+    "extension": string;
+    "description": string;
+    "destKind": string;
+    "destIndex": number;
+    "custom": string;
+}
+
+/**
+ * CallbackConfig holds the F-03 settings. Defaults follow the Xorcom article.
+ */
+export interface CallbackConfig {
+    /**
+     * the key a waiting caller presses
+     */
+    "key": string;
+
+    /**
+     * custom app that runs create_callback
+     */
+    "appCode": string;
+
+    /**
+     * queue priority of a returned call
+     */
+    "priority": number;
+
+    /**
+     * .call MaxRetries
+     */
+    "retries": number;
+
+    /**
+     * .call RetryTime
+     */
+    "retrySecs": number;
+
+    /**
+     * .call WaitTime
+     */
+    "ringSecs": number;
+
+    /**
+     * caller ID name the agent sees
+     */
+    "callerName": string;
+
+    /**
+     * digits dialed before the caller's number
+     */
+    "prefix": string;
+
+    /**
+     * ombu_recordings id played after the key, 0 = none
+     */
+    "recording": number;
+}
+
+export interface CallbackIVR {
+    "id": number;
+    "description": string;
+    "entries": CallbackIVREntry[] | null;
+}
+
+export interface CallbackIVREntry {
+    "option": string;
+    "enabled": boolean;
+    "destKind": string;
+    "destIndex": number;
+}
+
+/**
+ * CallbackPlan is exactly what Aplicar/Quitar will do: the steps in run order and the file content.
+ */
+export interface CallbackPlan {
+    "remove": boolean;
+    "dropWaiting": boolean;
+    "config": CallbackConfig;
+    "queues": string[] | null;
+    "routes": CallbackRoute[] | null;
+    "dialplan": string;
+    "steps": CallbackStep[] | null;
+}
+
+export interface CallbackPriority {
+    "id": number;
+    "description": string;
+    "priority": number;
+    "destKind": string;
+    "destIndex": number;
+}
+
+export interface CallbackQueue {
+    "id": number;
+    "extension": string;
+    "description": string;
+    "ivrID": number;
+    "ivrName": string;
+    "memberGosub": string;
+}
+
+/**
+ * CallbackQueueView is one queue as the sheet shows it; the rules stay here, not in the UI.
+ */
+export interface CallbackQueueView {
+    "queue": CallbackQueue;
+
+    /**
+     * callback fully on
+     */
+    "attached": boolean;
+
+    /**
+     * any F-03 part on: Quitar can take it off
+     */
+    "hooked": boolean;
+
+    /**
+     * why Instalar must skip it, "" = it can take callback
+     */
+    "foreign": string;
+    "waiting": number;
+}
+
+export interface CallbackRecording {
+    "id": number;
+    "name": string;
+}
+
+/**
+ * CallbackRoute sends a called-back customer of Queue to App, the custom app of its Queue Priority.
+ */
+export interface CallbackRoute {
+    "queue": string;
+    "app": string;
+}
+
+/**
+ * CallbackState is everything F-03 needs to know about the active PBX, read in one SSH session.
+ */
+export interface CallbackState {
+    "hasCC": boolean;
+    "queues": CallbackQueue[] | null;
+    "apps": CallbackApp[] | null;
+    "ivrs": CallbackIVR[] | null;
+    "priorities": CallbackPriority[] | null;
+    "recordings": CallbackRecording[] | null;
+    "recordingDir": string;
+    "fileExists": boolean;
+    "file": string;
+
+    /**
+     * "" = no log file
+     */
+    "logOwner": string;
+
+    /**
+     * how many of the 3 contexts Asterisk has loaded
+     */
+    "contexts": number;
+    "takenCodes": { [_ in string]?: boolean } | null;
+    "waiting": CallbackWaiting[] | null;
+}
+
+/**
+ * CallbackStep is one line of the preview and of the result.
+ */
+export interface CallbackStep {
+    "kind": string;
+
+    /**
+     * queue extension, for per-queue steps
+     */
+    "queue": string;
+
+    /**
+     * app code, for app steps
+     */
+    "code": string;
+    "label": string;
+    "before": string;
+    "after": string;
+    "status": string;
+    "error": string;
+}
+
+/**
+ * CallbackWaiting is one callback request still in AstDB: the queue, its key (the caller's uniqueid) and the number.
+ */
+export interface CallbackWaiting {
+    "queue": string;
+    "id": string;
+    "number": string;
+}
+
+/**
  * ChannelResult is one channel's outcome in a connection test.
  */
 export interface ChannelResult {
