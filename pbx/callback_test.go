@@ -478,3 +478,73 @@ func TestRunCallbackStopsAtFirstFailure(t *testing.T) {
 		t.Fatalf("stamps: %+v progress %v", got, done)
 	}
 }
+
+func TestInstallCallbackFile(t *testing.T) {
+	var cmd, body string
+	addr, fp := fakeSSH(t, func(c string, in []byte) (string, string, int) { cmd, body = c, string(in); return "", "", 0 })
+	p := sshProfile(t, addr, fp)
+	ctx := context.Background()
+	content := CallbackDialplan(DefaultCallbackConfig(), "", nil)
+	if err := InstallCallbackFile(ctx, p, Secrets{SSH: "pw"}, content); err != nil {
+		t.Fatal(err)
+	}
+	if body != content {
+		t.Fatal("the file content travels on stdin, never in the command")
+	}
+	for _, s := range []string{"install -o asterisk -g asterisk -m 644", ".conf.f03tmp", "mv -f", "dialplan reload", "Context '$c'"} {
+		if !strings.Contains(cmd, s) {
+			t.Errorf("command lacks %q:\n%s", s, cmd)
+		}
+	}
+	if strings.Contains(cmd, "[create_callback]") {
+		t.Fatal("content leaked into the command line")
+	}
+}
+
+func TestCallbackSSHFailuresCarryStderr(t *testing.T) {
+	addr, fp := fakeSSH(t, func(string, []byte) (string, string, int) { return "", "falta el contexto check_position", 1 })
+	p := sshProfile(t, addr, fp)
+	if err := InstallCallbackFile(context.Background(), p, Secrets{SSH: "pw"}, "x"); err == nil || !strings.Contains(err.Error(), "check_position") {
+		t.Fatalf("the remote reason must reach the user: %v", err)
+	}
+}
+
+func TestEnsureLogAndDrop(t *testing.T) {
+	var cmds []string
+	addr, fp := fakeSSH(t, func(c string, _ []byte) (string, string, int) { cmds = append(cmds, c); return "", "", 0 })
+	p := sshProfile(t, addr, fp)
+	ctx := context.Background()
+	if err := EnsureCallbackLog(ctx, p, Secrets{SSH: "pw"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(cmds[0], "[ -e "+callbackLog+" ] ||") || !strings.Contains(cmds[0], "chown asterisk:asterisk") {
+		t.Fatalf("the log is created only when missing, never truncated: %s", cmds[0])
+	}
+	if err := DropCallbacks(ctx, p, Secrets{SSH: "pw"}, "7599"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(cmds[1], "/callback/7599") || !strings.Contains(cmds[1], "database deltree") {
+		t.Fatalf("drop: %s", cmds[1])
+	}
+	if err := DropCallbacks(ctx, p, Secrets{SSH: "pw"}, "75;rm"); err == nil {
+		t.Fatal("a non-digit queue must never reach the shell")
+	}
+}
+
+func TestRouteCheck(t *testing.T) {
+	reply := "[ Included context 'trk-group-1' created by 'pbx_config' ]\n  '_X.' =>          1. Noop(OR_TO_PBXU3CV15)\n\n-= 1 extension (1 priority) in 1 context. =-\n"
+	var cmd string
+	addr, fp := fakeSSH(t, func(c string, _ []byte) (string, string, int) { cmd = c; return reply, "", 0 })
+	p := sshProfile(t, addr, fp)
+	got, err := RouteCheck(context.Background(), p, Secrets{SSH: "pw"}, "955551234")
+	if err != nil || got != "trk-group-1" || cmd != `asterisk -rx "dialplan show 955551234@ARS-all"` {
+		t.Fatalf("got %q err %v cmd %q", got, err, cmd)
+	}
+	reply = "There is no existence of 955551234@ARS-all extension\n"
+	if _, err := RouteCheck(context.Background(), p, Secrets{SSH: "pw"}, "955551234"); err == nil || !strings.Contains(err.Error(), "ninguna ruta de salida") {
+		t.Fatalf("no route must block: %v", err)
+	}
+	if _, err := RouteCheck(context.Background(), p, Secrets{SSH: "pw"}, "1;id"); err == nil {
+		t.Fatal("non-digits must never reach asterisk -rx")
+	}
+}
