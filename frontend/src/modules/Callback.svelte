@@ -211,6 +211,27 @@
   <h1>Devolución de llamada</h1>
   <p class="lead">Quien espera en una cola marca una tecla y la PBX le devuelve la llamada cuando llega su turno. Nada se escribe en la PBX hasta Aplicar.</p>
 
+  <!-- Static checklist: open until something is installed (view?.installed), closed after. -->
+  <details class="reqs" open={!view?.installed}>
+    <summary>Requisitos para que funcione</summary>
+    <p class="hint">La herramienta revisa lo marcado con ✔; lo demás debe confirmarlo en el portal antes de instalar.</p>
+    <ul>
+      <li>✔ La PBX tiene el módulo de Call Center.</li>
+      <li>✔ Ninguna cola elegida tiene ya un IVR o un membergosub ajeno (F-03 no los reemplaza).</li>
+      <li>✔ Una ruta de salida acepta el número de prueba (con el «Prefijo» si hace falta).</li>
+      <li>Los agentes de la cola usan un dispositivo SIP que esté registrado. Un dispositivo «CloudPhone Desktop» sin configurar no recibe llamadas.</li>
+      <li>Si las llamadas llegan desde otra PBX por una troncal:
+        <ul>
+          <li>En la otra PBX, la troncal hacia esta no debe reemplazar el número de quien llama: deje vacío «From User». Si no, la devolución marca el número de la troncal.</li>
+          <li>En esta PBX, el perfil SIP de la troncal hacia la otra: «Send Remote Party ID» = No. Si no, las llamadas a la cola quedan con audio en un solo sentido y la tecla no llega.</li>
+          <li>La otra PBX debe tener rutas de entrada (sin filtro de «CID Number») para los números a los que se devuelve la llamada. Si no, caen en su ruta por defecto y pueden sonar en teléfonos del personal.</li>
+        </ul>
+      </li>
+      <li>Grabe en el portal el anuncio periódico de la cola: «Presione {cfg?.key ?? '0'} para que le devolvamos la llamada».</li>
+      <li>Límite conocido: la devolución se da por atendida si contesta cualquier cosa (buzón, anuncio); no pide «presione 1» para confirmar.</li>
+    </ul>
+  </details>
+
   {#if viewError}
     <p class="notice"><Icon name="alert" /><span>{viewError}</span></p>
   {:else if !app.active}
@@ -415,6 +436,10 @@
   .page { padding: 22px 28px 0; }
   .notice { margin-bottom: 14px; }
   .step { margin-top: 14px; }
+  .reqs { margin-top: 14px; }
+  .reqs summary { cursor: pointer; font-weight: 700; }
+  .reqs ul { margin: 6px 0 0; padding-left: 22px; display: grid; gap: 6px; max-width: 80ch; }
+  .reqs ul ul { margin-top: 6px; }
   .ok { display: inline-flex; color: var(--ok); }
   .row { display: flex; gap: 22px; }
   .state { display: grid; grid-template-columns: max-content 1fr; gap: 4px 18px; margin: 0 0 12px; }
