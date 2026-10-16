@@ -9,7 +9,7 @@ A caller waiting in a queue presses a key and hangs up. When their turn comes, t
 
 Decided with the user:
 - Only for PBXs with the **Call Center module** (detection in section 3).
-- Follows the article, including **one Queue Priority + one custom app per queue**, with these changes: digits-only caller check, straight quotes and `printf`, `Hangup()` instead of `Return()`, an optional confirmation recording, and a dial prefix setting checked against the outbound routes.
+- Follows the article, including **one Queue Priority + one custom app per queue**, with these changes: digits-only caller check, straight quotes and `printf`, an optional confirmation recording, and a dial prefix setting checked against the outbound routes.
 - The article's release rule is kept as is (section 5), and so is its `DBdeltree`.
 - The portal objects are written through the **portal API** (the same AJAX calls the browser makes on Save), never by SQL. Files go over SSH.
 - v1 includes **Quitar** (uninstall) and the **confirmation message**.
