@@ -51,7 +51,7 @@
   const foundApp = $derived(st?.apps?.find((a) => a.custom === CB_APP))
   const appState = $derived(foundApp ? `código ${foundApp.extension} «${foundApp.description}»` : 'no existe')
   const ivrState = $derived.by(() => {
-    const ivr = foundApp && st?.ivrs?.find((i) => i.entries?.length === 1 && i.entries[0].destIndex === foundApp.id)
+    const ivr = foundApp && st?.ivrs?.find((i) => i.entries?.length === 1 && i.entries[0].destKind === 'custom_application' && i.entries[0].destIndex === foundApp.id)
     return ivr ? `«${ivr.description}» (Nº ${ivr.id}) · tecla ${ivr.entries![0].option}` : 'no existe'
   })
   const lit = $derived(!st?.hasCC ? 0 : picked.length === 0 ? 3 : !preview ? 4 : !result ? 5 : result.applied > 0 && !portalMsg ? 6 : 0)
