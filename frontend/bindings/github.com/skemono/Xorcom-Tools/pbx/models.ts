@@ -123,6 +123,11 @@ export interface CallbackPlan {
     "routes": CallbackRoute[] | null;
     "dialplan": string;
     "steps": CallbackStep[] | null;
+
+    /**
+     * Quitar: the file step waits for the portal's Apply (fileWaitText)
+     */
+    "fileWaits": boolean;
 }
 
 export interface CallbackPriority {
@@ -133,6 +138,10 @@ export interface CallbackPriority {
     "destIndex": number;
 }
 
+/**
+ * CallbackQueue is one queue as the portal stores it, plus what Asterisk runs for it now: LiveContext and
+ * LiveGosub come from the rendered queues file, which changes only on the portal's Apply ("" = not there).
+ */
 export interface CallbackQueue {
     "id": number;
     "extension": string;
@@ -140,6 +149,8 @@ export interface CallbackQueue {
     "ivrID": number;
     "ivrName": string;
     "memberGosub": string;
+    "liveContext": string;
+    "liveGosub": string;
 }
 
 /**
@@ -149,7 +160,7 @@ export interface CallbackQueueView {
     "queue": CallbackQueue;
 
     /**
-     * callback fully on
+     * callback fully on in the portal
      */
     "attached": boolean;
 
@@ -159,10 +170,25 @@ export interface CallbackQueueView {
     "hooked": boolean;
 
     /**
+     * Asterisk runs F-03 for it now (until the portal's Apply)
+     */
+    "live": boolean;
+
+    /**
+     * Quitar accepts it
+     */
+    "removable": boolean;
+
+    /**
      * why Instalar must skip it, "" = it can take callback
      */
     "foreign": string;
     "waiting": number;
+
+    /**
+     * its priority app's code, "" = none
+     */
+    "priorityApp": string;
 }
 
 export interface CallbackRecording {
@@ -203,6 +229,11 @@ export interface CallbackState {
     "contexts": number;
     "takenCodes": { [_ in string]?: boolean } | null;
     "waiting": CallbackWaiting[] | null;
+
+    /**
+     * destination category name -> id
+     */
+    "categories": { [_ in string]?: string } | null;
 }
 
 /**

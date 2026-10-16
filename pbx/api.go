@@ -24,9 +24,9 @@ type portal struct {
 }
 
 type portalReply struct {
-	State        string `json:"state"`
-	HTML         string `json:"html"`   // a getContent or put answer carries the form
-	Dialog       string `json:"dialog"` // a refused save answers state success plus a modal listing the errors
+	State        string          `json:"state"`
+	HTML         string          `json:"html"`   // a getContent or put answer carries the form
+	Dialog       json.RawMessage `json:"dialog"` // a refused save answers state success plus a modal listing the errors
 	Notification struct {
 		Text string `json:"text"`
 	} `json:"notification"`
@@ -156,8 +156,12 @@ var htmlTag = regexp.MustCompile(`<[^>]*>`)
 // checkReply turns a refused module request into an error: a dialog (even with state "success") or any
 // state but "success", carrying the portal's own text.
 func checkReply(r portalReply) error {
-	if r.Dialog != "" {
-		return fmt.Errorf("el portal rechazó el cambio: %s", strings.Join(strings.Fields(html.UnescapeString(htmlTag.ReplaceAllString(r.Dialog, " "))), " "))
+	if d := strings.TrimSpace(string(r.Dialog)); d != "" && d != "null" && d != "false" && d != `""` {
+		var s string
+		if json.Unmarshal(r.Dialog, &s) == nil {
+			d = s
+		}
+		return fmt.Errorf("el portal rechazó el cambio: %s", strings.Join(strings.Fields(html.UnescapeString(htmlTag.ReplaceAllString(d, " "))), " "))
 	}
 	if r.State != "success" {
 		reason := r.Notification.Text

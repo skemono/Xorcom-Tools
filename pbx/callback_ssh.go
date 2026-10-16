@@ -67,9 +67,10 @@ var reTrunkMatch = regexp.MustCompile(`(?i)context '(trk-group-[^']+)'`)
 
 // RouteCheck asks Asterisk whether an outbound route of cos-all (its ARS-all) accepts number, and returns
 // the trunk group context that does. cos-all itself is useless here: its catch-all matches every number.
+// number is the full dialed number (prefix + test number, each checked by the caller); digits only reach the shell.
 func RouteCheck(ctx context.Context, p Profile, sec Secrets, number string) (string, error) {
-	if err := CheckDialNumber(number); err != nil {
-		return "", err
+	if !reDigits.MatchString(number) || len(number) > 26 {
+		return "", fmt.Errorf("el número marcado «%s» no es válido", number)
 	}
 	out, err := SSHExec(ctx, p, sec.SSH, sec.SSHKey, `asterisk -rx "dialplan show `+number+`@ARS-all"`, nil)
 	if err != nil {
@@ -78,5 +79,5 @@ func RouteCheck(ctx context.Context, p Profile, sec Secrets, number string) (str
 	if m := reTrunkMatch.FindStringSubmatch(out); m != nil {
 		return m[1], nil
 	}
-	return "", fmt.Errorf("ninguna ruta de salida acepta %s: revise el prefijo", number)
+	return "", fmt.Errorf("ninguna ruta de salida acepta el número marcado %s: revise el prefijo", number)
 }

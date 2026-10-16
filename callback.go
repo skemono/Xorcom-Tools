@@ -28,6 +28,8 @@ type CallbackView struct {
 	Queues    []pbx.CallbackQueueView `json:"queues"`
 	Config    pbx.CallbackConfig      `json:"config"`
 	Installed bool                    `json:"installed"`
+	App       *pbx.CallbackApp        `json:"app"` // F-03's custom app, nil = none
+	IVR       *pbx.CallbackIVR        `json:"ivr"` // F-03's breakout IVR, nil = none
 }
 
 type CallbackPreview struct {
@@ -69,7 +71,7 @@ func (s *CallbackService) State() (CallbackView, error) {
 	if !ok {
 		c = pbx.DefaultCallbackConfig()
 	}
-	return CallbackView{State: st, Queues: st.QueueViews(), Config: c, Installed: ok}, nil
+	return CallbackView{State: st, Queues: st.QueueViews(), Config: c, Installed: ok, App: st.CallbackApp(), IVR: st.CallbackIVR()}, nil
 }
 
 func (s *CallbackService) PreviewInstall(c pbx.CallbackConfig, queues []string, testNumber string) (CallbackPreview, error) {
@@ -78,6 +80,9 @@ func (s *CallbackService) PreviewInstall(c pbx.CallbackConfig, queues []string, 
 		return CallbackPreview{}, err
 	}
 	if err := c.Validate(); err != nil {
+		return CallbackPreview{}, err
+	}
+	if err := pbx.CheckDialNumber(testNumber); err != nil { // the test number alone, before the prefix
 		return CallbackPreview{}, err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), callbackReadTimeout)

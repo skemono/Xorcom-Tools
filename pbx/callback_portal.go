@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -23,6 +24,10 @@ const (
 	gosubNameField = "advanced_name[]"
 	gosubValField  = "advanced_value[]"
 )
+
+// knownCategories: the names the state script reads from ombu_destination_categories and the ids the forms post.
+var knownCategories = map[string]string{"custom": catCustom, "custom_application": catCustomApp, "queue": catQueue,
+	"queue_priority": catQueuePrio, "terminate_call": catTerminate}
 
 // CallbackPortal is one logged-in portal session for a whole Aplicar/Quitar.
 type CallbackPortal struct {
@@ -47,22 +52,77 @@ func OpenCallbackPortal(ctx context.Context, p Profile, sec Secrets) (*CallbackP
 
 func (cp *CallbackPortal) Close() { cp.pt.client.CloseIdleConnections() }
 
-// queueSnapshot is one queue's row plus its CUSTOM params ("param:<name>"), compared around a save.
+// queueTablesSQL finds every other table with a queue_id column (agents, departments, …) and its
+// primary key columns.
+const queueTablesSQL = "SELECT q.table_name AS t, IFNULL(GROUP_CONCAT(k.column_name), '') AS pk FROM information_schema.columns q " +
+	"LEFT JOIN information_schema.columns k ON k.table_schema = q.table_schema AND k.table_name = q.table_name AND k.column_key = 'PRI' " +
+	"WHERE q.table_schema = 'ombutel' AND q.column_name = 'queue_id' AND q.table_name NOT IN ('ombu_queues', 'ombu_queue_params') " +
+	"GROUP BY q.table_name ORDER BY q.table_name;"
+
+var reTableName = regexp.MustCompile(`^[A-Za-z0-9_]+$`)
+
+// queueSnapshot is everything the portal's queue form can save, compared around a save: the queue's
+// row, its CUSTOM params ("param:<name>") and its rows in every other table with a queue_id column
+// ("table:<name>#<n>", sorted). A single-column primary key named *_id is left out: the portal may
+// renumber those rows on a save without changing them.
 func queueSnapshot(ctx context.Context, p Profile, sec Secrets, id int) (map[string]string, error) {
-	rows, err := MySQL(ctx, p, sec, fmt.Sprintf("SELECT * FROM ombu_queues WHERE queue_id = %d;", id))
+	tables, err := MySQL(ctx, p, sec, queueTablesSQL)
 	if err != nil {
 		return nil, err
 	}
+	var b strings.Builder
+	sqlSection(&b, "queue", fmt.Sprintf("SELECT * FROM ombu_queues WHERE queue_id = %d;", id))
+	sqlSection(&b, "params", fmt.Sprintf("SELECT name, value FROM ombu_queue_params WHERE queue_id = %d;", id))
+	for _, t := range tables {
+		if !reTableName.MatchString(t["t"]) {
+			return nil, fmt.Errorf("la PBX tiene una tabla de colas con un nombre inesperado «%s»", t["t"])
+		}
+		sqlSection(&b, "table "+t["t"], fmt.Sprintf("SELECT * FROM `%s` WHERE queue_id = %d;", t["t"], id))
+	}
+	out, err := SSHExec(ctx, p, sec.SSH, sec.SSHKey, "bash -s", strings.NewReader(b.String()))
+	if err != nil {
+		return nil, fmt.Errorf("MySQL: %w", err)
+	}
+	secs, err := splitSections(out)
+	if err != nil {
+		return nil, err
+	}
+	need := []string{"queue", "params"}
+	for _, t := range tables {
+		need = append(need, "table "+t["t"])
+	}
+	for _, n := range need { // a cut-short answer must not look like "nothing there"
+		if _, ok := secs[n]; !ok {
+			return nil, fmt.Errorf("respuesta incompleta de la PBX al leer la cola %d", id)
+		}
+	}
+	rows := parseBatch(secs["queue"])
 	if len(rows) != 1 {
 		return nil, fmt.Errorf("la cola %d no existe", id)
 	}
 	snap := rows[0]
-	params, err := MySQL(ctx, p, sec, fmt.Sprintf("SELECT name, value FROM ombu_queue_params WHERE queue_id = %d;", id))
-	if err != nil {
-		return nil, err
-	}
-	for _, r := range params {
+	for _, r := range parseBatch(secs["params"]) {
 		snap["param:"+r["name"]] = r["value"]
+	}
+	for _, t := range tables {
+		skip := t["pk"]
+		if strings.Contains(skip, ",") || !strings.HasSuffix(skip, "_id") || skip == "queue_id" {
+			skip = "" // a composite key or a non-id key is data
+		}
+		var canon []string
+		for _, r := range parseBatch(secs["table "+t["t"]]) {
+			delete(r, skip)
+			cols := make([]string, 0, len(r))
+			for k, v := range r {
+				cols = append(cols, k+"="+strconv.Quote(v))
+			}
+			sort.Strings(cols)
+			canon = append(canon, strings.Join(cols, " "))
+		}
+		sort.Strings(canon)
+		for i, c := range canon {
+			snap[fmt.Sprintf("table:%s#%d", t["t"], i)] = c
+		}
 	}
 	return snap, nil
 }
@@ -97,7 +157,7 @@ func (cp *CallbackPortal) guardQueue(ctx context.Context, q CallbackQueue, save 
 	after, err := queueSnapshot(ctx, cp.p, cp.sec, q.ID)
 	if err != nil {
 		if saveErr != nil {
-			return saveErr
+			return fmt.Errorf("%w; además, no se pudo verificar la cola %s después de guardar: %v", saveErr, q.Extension, err)
 		}
 		return fmt.Errorf("no se pudo verificar la cola %s después de guardar: %w", q.Extension, err)
 	}
@@ -162,6 +222,9 @@ func CallbackStepRunner(p Profile, sec Secrets, cp *CallbackPortal, plan Callbac
 			iv := st.CallbackIVR()
 			if iv == nil {
 				return errors.New("falta el IVR de devolución de llamada")
+			}
+			if why := st.foreign(*q); why != "" { // someone set an IVR or membergosub since the preview
+				return errors.New(why)
 			}
 			return cp.guardQueue(ctx, *q, func() error { return cp.setQueue(ctx, *q, iv.ID, memberGosub) })
 		case StepDetach:

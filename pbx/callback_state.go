@@ -25,8 +25,11 @@ type CallbackState struct {
 	Contexts     int                 `json:"contexts"` // how many of the 3 contexts Asterisk has loaded
 	TakenCodes   map[string]bool     `json:"takenCodes"`
 	Waiting      []CallbackWaiting   `json:"waiting"`
+	Categories   map[string]string   `json:"categories"` // destination category name -> id
 }
 
+// CallbackQueue is one queue as the portal stores it, plus what Asterisk runs for it now: LiveContext and
+// LiveGosub come from the rendered queues file, which changes only on the portal's Apply ("" = not there).
 type CallbackQueue struct {
 	ID          int    `json:"id"`
 	Extension   string `json:"extension"`
@@ -34,6 +37,8 @@ type CallbackQueue struct {
 	IVRID       int    `json:"ivrID"`
 	IVRName     string `json:"ivrName"`
 	MemberGosub string `json:"memberGosub"`
+	LiveContext string `json:"liveContext"`
+	LiveGosub   string `json:"liveGosub"`
 }
 
 // CallbackApp is a custom app with its destination resolved: DestKind is the destination category name
@@ -83,8 +88,19 @@ type CallbackWaiting struct {
 const (
 	callbackFile = "/etc/asterisk/ombutel/extensions__65-callback.conf"
 	callbackLog  = "/var/log/cpbx/callback.log"
+	queuesFile   = "/etc/asterisk/ombutel/queues__50-1-main.conf"
 	sectionMark  = "@@f03 "
 )
+
+// renderedAwk prints "<ext>\t<context>\t<membergosub>" for every [Q<ext>] block of the rendered queues
+// file; it takes both "key=value" and "key = value".
+const renderedAwk = `function flush() { if (q != "") print q "\t" c "\t" g }
+{ sub(/\r$/, "") }
+/^\[/ { flush(); q = ""; c = ""; g = ""; e = index($0, "]"); if (substr($0, 2, 1) == "Q" && e > 3) q = substr($0, 3, e - 3); next }
+q != "" { n = index($0, "="); if (n == 0) next; k = substr($0, 1, n - 1); v = substr($0, n + 1)
+  gsub(/^[ \t]+|[ \t]+$/, "", k); gsub(/^[ \t]+|[ \t]+$/, "", v)
+  if (k == "context") c = v; else if (k == "membergosub") g = v }
+END { flush() }`
 
 // destJoin resolves an ombu_destinations id column to (dest_kind, dest_index).
 func destJoin(col string) string {
@@ -99,7 +115,6 @@ var callbackSQL = []struct{ name, sql string }{
 	{"queues", "SELECT q.queue_id AS id, q.extension AS extension, IFNULL(q.description, '') AS description, IFNULL(q.ivr_id, 0) AS ivr_id, " +
 		"IFNULL(i.description, '') AS ivr_name, IFNULL(p.value, '') AS membergosub FROM ombu_queues q " +
 		"LEFT JOIN ombu_ivrs i ON i.ivr_id = q.ivr_id LEFT JOIN ombu_queue_params p ON p.queue_id = q.queue_id AND p.name = 'membergosub' ORDER BY q.extension;"},
-	// Task 1 confirms: a Custom destination's index points at ombu_custom_contexts.
 	{"apps", "SELECT a.custom_application_id AS id, a.extension AS extension, IFNULL(a.description, '') AS description, " + destCols + ", " +
 		"IFNULL((SELECT CONCAT(x.context, ',', x.extension, ',', x.priority) FROM ombu_custom_contexts x WHERE c.name = 'custom' AND x.custom_context_id = d.`index`), '') AS custom " +
 		"FROM ombu_custom_applications a" + destJoin("a.destination_id") + " ORDER BY a.extension;"},
@@ -108,14 +123,21 @@ var callbackSQL = []struct{ name, sql string }{
 	{"priorities", "SELECT p.queue_priority_id AS id, IFNULL(p.description, '') AS description, p.priority AS priority, " + destCols +
 		" FROM ombu_queue_priorities p" + destJoin("p.destination_id") + " ORDER BY p.queue_priority_id;"},
 	{"recordings", "SELECT recording_id AS id, name FROM ombu_recordings WHERE original_filename <> '' ORDER BY name;"},
+	{"categories", "SELECT category_id AS id, name FROM ombu_destination_categories WHERE name IN ('custom','custom_application','queue','queue_priority','terminate_call');"},
+}
+
+// sqlSection adds one query to a bash -s script: its "@@f03 <name>" mark, then its rows (or an error mark).
+func sqlSection(b *strings.Builder, name, sql string) {
+	fmt.Fprintf(b, "echo '%s%s'\n%s <<'SQL' || echo '%serror %s'\n%s\nSQL\n", sectionMark, name, mysqlCmd, sectionMark, name, sql)
 }
 
 // callbackStateScript reads the whole state; every section starts with "@@f03 <name>". codes must be digits.
 func callbackStateScript(codes []string) string {
 	var b strings.Builder
 	for _, q := range callbackSQL {
-		fmt.Fprintf(&b, "echo '%s%s'\n%s <<'SQL' || echo '%serror %s'\n%s\nSQL\n", sectionMark, q.name, mysqlCmd, sectionMark, q.name, q.sql)
+		sqlSection(&b, q.name, q.sql)
 	}
+	fmt.Fprintf(&b, "echo '%srendered'\nif [ -e %s ]; then awk '%s' %s || echo '%serror rendered'; fi\n", sectionMark, queuesFile, renderedAwk, queuesFile, sectionMark)
 	fmt.Fprintf(&b, "echo '%srecdir'\nls -d /var/lib/ombutel/static/*/recordings 2>/dev/null\n", sectionMark)
 	fmt.Fprintf(&b, "echo '%sfile'\nif [ -e %s ]; then echo 1; base64 -w0 %s; echo; fi\n", sectionMark, callbackFile, callbackFile)
 	fmt.Fprintf(&b, "echo '%slog'\nstat -c %%U %s 2>/dev/null\n", sectionMark, callbackLog)
@@ -144,7 +166,8 @@ func ReadCallbackState(ctx context.Context, p Profile, sec Secrets, codes []stri
 
 var reWaiting = regexp.MustCompile(`^/[^/]+/callback/([0-9]+)/([0-9]+\.[0-9]+)\s*:\s*([0-9]*)\s*$`)
 
-func parseCallbackState(out string) (CallbackState, error) {
+// splitSections cuts a script's output at its "@@f03 <name>" marks; an "error <name>" mark is an error.
+func splitSections(out string) (map[string]string, error) {
 	sec := map[string]string{}
 	name := ""
 	for _, line := range strings.SplitAfter(out, "\n") {
@@ -159,21 +182,42 @@ func parseCallbackState(out string) (CallbackState, error) {
 	}
 	for k := range sec {
 		if x, ok := strings.CutPrefix(k, "error "); ok {
-			return CallbackState{}, fmt.Errorf("la PBX no respondió a la consulta «%s»", x)
+			return nil, fmt.Errorf("la PBX no respondió a la consulta «%s»", x)
 		}
+	}
+	return sec, nil
+}
+
+func parseCallbackState(out string) (CallbackState, error) {
+	sec, err := splitSections(out)
+	if err != nil {
+		return CallbackState{}, err
 	}
 	if _, ok := sec["waiting"]; !ok {
 		return CallbackState{}, errors.New("respuesta inesperada de la PBX al leer el estado (¿es una CompletePBX 5?)")
 	}
 	atoi := func(s string) int { n, _ := strconv.Atoi(s); return n }
 	lines := func(s string) []string { return strings.Fields(s) }
-	st := CallbackState{TakenCodes: map[string]bool{}}
+	st := CallbackState{TakenCodes: map[string]bool{}, Categories: map[string]string{}}
 	for _, r := range parseBatch(sec["modules"]) {
 		st.HasCC = st.HasCC || r["name"] == "supervision"
 	}
+	rendered := map[string][]string{}
+	for _, line := range strings.Split(sec["rendered"], "\n") {
+		if f := strings.Split(strings.TrimRight(line, "\r"), "\t"); len(f) == 3 {
+			rendered[f[0]] = f[1:]
+		}
+	}
 	for _, r := range parseBatch(sec["queues"]) {
-		st.Queues = append(st.Queues, CallbackQueue{ID: atoi(r["id"]), Extension: r["extension"], Description: r["description"],
-			IVRID: atoi(r["ivr_id"]), IVRName: r["ivr_name"], MemberGosub: r["membergosub"]})
+		q := CallbackQueue{ID: atoi(r["id"]), Extension: r["extension"], Description: r["description"],
+			IVRID: atoi(r["ivr_id"]), IVRName: r["ivr_name"], MemberGosub: r["membergosub"]}
+		if f, ok := rendered[q.Extension]; ok {
+			q.LiveContext, q.LiveGosub = f[0], f[1]
+		}
+		st.Queues = append(st.Queues, q)
+	}
+	for _, r := range parseBatch(sec["categories"]) {
+		st.Categories[r["name"]] = r["id"]
 	}
 	for _, r := range parseBatch(sec["apps"]) {
 		st.Apps = append(st.Apps, CallbackApp{ID: atoi(r["id"]), Extension: r["extension"], Description: r["description"],

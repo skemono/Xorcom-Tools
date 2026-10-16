@@ -119,6 +119,8 @@ func cannedState(file string) string {
 		"11\tCallback\t0\tyes\tcustom_application\t5\n2\tPRINCIPAL\t1\tyes\tivr\t12\n2\tPRINCIPAL\t2\tyes\tivr\t4\n" +
 		"@@f03 priorities\nid\tdescription\tpriority\tdest_kind\tdest_index\n3\tCallback 7599\t10\tqueue\t9\n" +
 		"@@f03 recordings\nid\tname\n2\tCALL CENTER NUEVO\n" +
+		"@@f03 categories\nid\tname\n25\tcustom\n4\tcustom_application\n10\tqueue\n11\tqueue_priority\n24\tterminate_call\n" +
+		"@@f03 rendered\n7599\tIVR-11\tcheck_position\n" +
 		"@@f03 recdir\n/var/lib/ombutel/static/abc123/recordings\n" +
 		"@@f03 file\n1\n" + b64 + "\n" +
 		"@@f03 log\nasterisk\n" +
@@ -133,8 +135,15 @@ func TestParseCallbackState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !st.HasCC || len(st.Queues) != 2 || st.Queues[1] != (CallbackQueue{ID: 9, Extension: "7599", Description: "PRUEBA CALLBACK", IVRID: 11, IVRName: "Callback", MemberGosub: "check_position"}) {
+	if !st.HasCC || len(st.Queues) != 2 || st.Queues[1] != (CallbackQueue{ID: 9, Extension: "7599", Description: "PRUEBA CALLBACK", IVRID: 11, IVRName: "Callback", MemberGosub: "check_position",
+		LiveContext: "IVR-11", LiveGosub: "check_position"}) {
 		t.Fatalf("queues: %+v", st.Queues)
+	}
+	if st.Queues[0].LiveContext != "" || st.Queues[0].LiveGosub != "" || !st.live(st.Queues[1]) || st.live(st.Queues[0]) {
+		t.Fatalf("rendered: 7599 is live, 7510 is not in the file: %+v", st.Queues)
+	}
+	if err := st.categoriesOK(); err != nil {
+		t.Fatalf("categories: %v %v", st.Categories, err)
 	}
 	if len(st.Apps) != 2 || st.Apps[0].Custom != "create_callback,s,1" || st.Apps[1].DestKind != "queue_priority" || st.Apps[1].DestIndex != 3 {
 		t.Fatalf("apps: %+v", st.Apps)
@@ -178,7 +187,7 @@ func TestParseCallbackStateFailures(t *testing.T) {
 		t.Fatal("invalid base64 must be an error")
 	}
 	s := callbackStateScript([]string{"799"})
-	for _, w := range []string{`if [ -n "$i" ]; then`, "|| echo '@@f03 error queues'"} {
+	for _, w := range []string{`if [ -n "$i" ]; then`, "|| echo '@@f03 error queues'", "awk '" + renderedAwk + "' " + queuesFile + " || echo '@@f03 error rendered'"} {
 		if !strings.Contains(s, w) {
 			t.Errorf("script lacks %q", w)
 		}
@@ -213,6 +222,7 @@ func TestReadCallbackStateOneSession(t *testing.T) {
 // freshPBX: CC present, queues 7510 and 75102 with nothing, recording 2, no callback pieces; 799 and 797 free.
 func freshPBX() CallbackState {
 	return CallbackState{HasCC: true, TakenCodes: map[string]bool{},
+		Categories:   map[string]string{"custom": "25", "custom_application": "4", "queue": "10", "queue_priority": "11", "terminate_call": "24"},
 		Queues:       []CallbackQueue{{ID: 1, Extension: "7510", Description: "Cola CC"}, {ID: 2, Extension: "75102", Description: "Cola SF"}},
 		Recordings:   []CallbackRecording{{ID: 2, Name: "Gracias"}},
 		RecordingDir: "/var/lib/ombutel/static/abc123/recordings"}
@@ -374,8 +384,10 @@ func TestPlanRemove(t *testing.T) {
 	if got := kinds(p); got != "detach:nuevo delprioapp:nuevo delpriority:nuevo dropwaiting:nuevo delivr:nuevo delapp:nuevo delfile:nuevo" {
 		t.Fatalf("last queue out removes everything shared: %s", got)
 	}
-	if p, _ = PlanRemove(st, []string{"7510"}, false); strings.Contains(kinds(p), "dropwaiting") {
-		t.Fatal("waiting callbacks are only dropped when asked")
+	p, _ = PlanRemove(st, []string{"7510"}, false)
+	if strings.Contains(kinds(p), "dropwaiting:nuevo") || p.Steps[3].Kind != StepDropWaiting || p.Steps[3].Status != CbSkip ||
+		p.Steps[3].After != "se conservan: saldrán si vuelve a instalar (márquelo para descartarlas)" {
+		t.Fatalf("waiting callbacks are only dropped when asked; otherwise the plan says they stay: %s", kinds(p))
 	}
 	if _, err := PlanRemove(st, []string{"75102"}, false); err == nil {
 		t.Fatal("a queue without callback cannot be removed")
@@ -558,7 +570,7 @@ func TestRouteCheck(t *testing.T) {
 		t.Fatalf("got %q err %v cmd %q", got, err, cmd)
 	}
 	reply = "There is no existence of 955551234@ARS-all extension\n"
-	if _, err := RouteCheck(context.Background(), p, Secrets{SSH: "pw"}, "955551234"); err == nil || !strings.Contains(err.Error(), "ninguna ruta de salida") {
+	if _, err := RouteCheck(context.Background(), p, Secrets{SSH: "pw"}, "955551234"); err == nil || !strings.Contains(err.Error(), "ninguna ruta de salida acepta el número marcado 955551234") {
 		t.Fatalf("no route must block: %v", err)
 	}
 	if _, err := RouteCheck(context.Background(), p, Secrets{SSH: "pw"}, "1;id"); err == nil {
@@ -869,5 +881,256 @@ func TestPortalDeletes(t *testing.T) {
 			t.Fatal(err)
 		}
 		wantFields(t, lastCall(t, calls), [][2]string{{"class", c.class}, {"method", "delete"}, {"mode", "delete"}, {"data", "7"}, {"baseurl", srv.URL}})
+	}
+}
+
+// twoQueues: installed() plus 75102 attached too (priority 4, app 796); the file has both routes.
+func twoQueues() CallbackState {
+	st := installed()
+	st.Queues[1].IVRID, st.Queues[1].IVRName, st.Queues[1].MemberGosub = 11, "Callback", "check_position"
+	st.Priorities = append(st.Priorities, CallbackPriority{ID: 4, Description: "Callback 75102", Priority: 10, DestKind: "queue", DestIndex: 2})
+	st.Apps = append(st.Apps, CallbackApp{ID: 7, Extension: "796", Description: "Callback 75102", DestKind: "queue_priority", DestIndex: 4})
+	st.File = CallbackDialplan(DefaultCallbackConfig(), "", []CallbackRoute{{"7510", "797"}, {"75102", "796"}})
+	return st
+}
+
+func TestPlanRemoveWaitsWhileQueueIsLive(t *testing.T) {
+	st := installed()
+	st.Queues[0].LiveContext, st.Queues[0].LiveGosub = "IVR-11", "check_position"
+	p, err := PlanRemove(st, []string{"7510"}, false)
+	if err != nil || kinds(p) != "detach:nuevo delprioapp:nuevo delpriority:nuevo delivr:nuevo delapp:nuevo delfile:omitir" {
+		t.Fatalf("the portal pieces go now, the file waits: %s %v", kinds(p), err)
+	}
+	if f := p.Steps[len(p.Steps)-1]; f.After != fileWaitText || !p.FileWaits || p.Dialplan != "" {
+		t.Fatalf("the waiting file step says why: %+v", p)
+	}
+	got := RunCallback(context.Background(), p, func(context.Context, CallbackStep) error { return nil }, func(int) {})
+	if f := got[len(got)-1]; f.Status != CbSkipped || f.Error != fileWaitText {
+		t.Fatalf("the result says the file waits, not that it was already so: %+v", f)
+	}
+	for name, mod := range map[string]func(*CallbackQueue){
+		"only the IVR context": func(q *CallbackQueue) { q.LiveGosub = "" },
+		"only the membergosub": func(q *CallbackQueue) { q.LiveContext = "" },
+	} {
+		s := installed()
+		s.Queues[0].LiveContext, s.Queues[0].LiveGosub = "IVR-11", "check_position"
+		mod(&s.Queues[0])
+		if p, _ := PlanRemove(s, []string{"7510"}, false); !p.FileWaits {
+			t.Errorf("%s still runs F-03: %s", name, kinds(p))
+		}
+	}
+	st = installed()
+	st.Queues[0].LiveContext = "IVR-2" // a foreign IVR rendered: not F-03's
+	if p, err = PlanRemove(st, []string{"7510"}, false); err != nil || p.FileWaits || kinds(p) != "detach:nuevo delprioapp:nuevo delpriority:nuevo delivr:nuevo delapp:nuevo delfile:nuevo" {
+		t.Fatalf("not live: the file goes now: %s %v", kinds(p), err)
+	}
+	st = installed() // the callback IVR is already gone from the portal; Asterisk still runs its context
+	st.Queues[0].IVRID, st.Queues[0].IVRName, st.Queues[0].MemberGosub, st.IVRs = 0, "", "", nil
+	st.Queues[0].LiveContext = "IVR-11"
+	if !st.live(st.Queues[0]) {
+		t.Fatal("a rendered IVR the portal no longer has for the queue may be the old callback IVR: live")
+	}
+}
+
+func TestPlanRemoveKeepsRoutesOfLiveQueues(t *testing.T) {
+	st := twoQueues()
+	st.Queues[0].LiveContext, st.Queues[0].LiveGosub = "IVR-11", "check_position"
+	st.Queues[1].LiveContext, st.Queues[1].LiveGosub = "IVR-11", "check_position"
+	p, err := PlanRemove(st, []string{"7510"}, false)
+	if err != nil || len(p.Routes) != 2 || p.Routes[0] != (CallbackRoute{"7510", "797"}) || p.Routes[1] != (CallbackRoute{"75102", "796"}) {
+		t.Fatalf("7510 is still live: its callbacks keep their route: %+v %v", p.Routes, err)
+	}
+	if kinds(p) != "detach:nuevo delprioapp:nuevo delpriority:nuevo" {
+		t.Fatalf("the file already has both routes: nothing to rewrite: %s", kinds(p))
+	}
+	st.Contexts = 2 // a rewrite is needed, but 7510 is live: it waits
+	if p, _ = PlanRemove(st, []string{"7510"}, false); kinds(p) != "detach:nuevo delprioapp:nuevo delpriority:nuevo file:omitir" || !p.FileWaits {
+		t.Fatalf("the rewrite waits too: %s", kinds(p))
+	}
+	st = twoQueues()
+	st.Queues[0].LiveGosub = "check_position" // detached in the portal earlier, not applied yet
+	st.Queues[0].IVRID, st.Queues[0].IVRName, st.Queues[0].MemberGosub = 0, "", ""
+	ip, err := PlanInstall(st, DefaultCallbackConfig(), []string{"75102"})
+	if err != nil || len(ip.Routes) != 2 {
+		t.Fatalf("an install keeps the route of a queue that is still live: %+v %v", ip.Routes, err)
+	}
+}
+
+func TestPlanRemoveSharedLeftovers(t *testing.T) {
+	st := freshPBX() // a stopped install: file, log and app only
+	st.Apps = []CallbackApp{{ID: 5, Extension: "799", Description: "Callback", DestKind: "custom", Custom: callbackTarget}}
+	st.File, st.FileExists, st.LogOwner, st.Contexts = CallbackDialplan(DefaultCallbackConfig(), "", nil), true, "asterisk", 3
+	p, err := PlanRemove(st, nil, false)
+	if err != nil || kinds(p) != "delapp:nuevo delfile:nuevo" {
+		t.Fatalf("no queues: only the shared pieces: %s %v", kinds(p), err)
+	}
+	if _, err := PlanRemove(installed(), nil, false); err == nil || err.Error() != "elija las colas que tienen devolución de llamada" {
+		t.Fatalf("a hooked queue must be chosen: %v", err)
+	}
+	st.Queues[0].LiveGosub = "check_position"
+	if _, err := PlanRemove(st, nil, false); err == nil || !strings.Contains(err.Error(), "Aplicar cambios en la PBX") {
+		t.Fatalf("a queue still live: apply first: %v", err)
+	}
+	if _, err := PlanRemove(freshPBX(), nil, false); err == nil {
+		t.Fatal("nothing to remove must be said, not planned empty")
+	}
+}
+
+func TestQueueViewsRemovableAndLive(t *testing.T) {
+	st := freshPBX()
+	st.Priorities = []CallbackPriority{{ID: 3, Description: "Callback 7510", Priority: 10, DestKind: "queue", DestIndex: 1}}
+	st.Apps = []CallbackApp{{ID: 6, Extension: "797", Description: "Callback 7510", DestKind: "queue_priority", DestIndex: 3}}
+	st.Queues[1].LiveGosub = "check_position"
+	v := st.QueueViews()
+	if !v[0].Removable || v[0].Hooked || v[0].PriorityApp != "797" || v[0].Live {
+		t.Fatalf("7510 has only its priority pieces: removable: %+v", v[0])
+	}
+	if v[1].Removable || !v[1].Live || v[1].PriorityApp != "" {
+		t.Fatalf("75102: nothing in the portal, still live: %+v", v[1])
+	}
+	if _, err := PlanRemove(st, []string{"7510"}, false); err != nil {
+		t.Fatalf("Removable matches PlanRemove: %v", err)
+	}
+}
+
+func TestPlansRefuseUnknownCategories(t *testing.T) {
+	for name, mod := range map[string]func(map[string]string){
+		"other id": func(c map[string]string) { c["queue"] = "12" },
+		"missing":  func(c map[string]string) { delete(c, "terminate_call") },
+	} {
+		st := installed()
+		mod(st.Categories)
+		_, ei := PlanInstall(st, DefaultCallbackConfig(), []string{"75102"})
+		_, er := PlanRemove(st, []string{"7510"}, false)
+		for _, err := range []error{ei, er} {
+			if err == nil || !strings.Contains(err.Error(), "categorías de destino") {
+				t.Errorf("%s: nothing may be written: %v", name, err)
+			}
+		}
+	}
+}
+
+func TestPlanInstallKeepsInstalledKeyAndPriority(t *testing.T) {
+	c := DefaultCallbackConfig()
+	c.Key, c.Priority = "5", 20
+	p, err := PlanInstall(installed(), c, []string{"7510"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Steps[3].Kind != StepIVR || p.Steps[3].After != "ya instalado con la tecla 0: se mantiene 0 (quite e instale de nuevo para cambiarla)" || p.Steps[3].Code != "0" {
+		t.Fatalf("the IVR keeps its key and says so: %+v", p.Steps[3])
+	}
+	if got, ok := ParseCallbackConfig(p.Dialplan); p.Config.Key != "0" || !ok || got.Key != "0" {
+		t.Fatalf("the file header records the installed key: %+v %+v", p.Config, got)
+	}
+	if p.Steps[4].Kind != StepPriority || !strings.Contains(p.Steps[4].After, "prioridad 10: se mantiene 10") {
+		t.Fatalf("the priority keeps its value and says so: %+v", p.Steps[4])
+	}
+}
+
+func TestStepRunnerQueueRechecksForeign(t *testing.T) {
+	state := strings.Replace(cannedState(""), "1\t7510\tCola CC\t0\t\t\n", "1\t7510\tCola CC\t0\t\totra_cosa\n", 1)
+	addr, fp := fakeSSH(t, func(string, []byte) (string, string, int) { return state, "", 0 })
+	srv, calls := recPortal(t, "success")
+	cp := openFake(t, srv)
+	run := CallbackStepRunner(sshProfile(t, addr, fp), Secrets{SSH: "pw"}, cp, CallbackPlan{})
+	if err := run(context.Background(), CallbackStep{Kind: StepQueue, Queue: "7510"}); err == nil || !strings.Contains(err.Error(), "otra_cosa") {
+		t.Fatalf("a membergosub set since the preview stops the step: %v", err)
+	}
+	if len(*calls) != 0 {
+		t.Fatalf("nothing may reach the portal: %v", *calls)
+	}
+}
+
+func TestStepRunnerIVRUsesAppIDFromState(t *testing.T) {
+	addr, fp := fakeSSH(t, func(string, []byte) (string, string, int) { return cannedState(""), "", 0 })
+	srv, calls := recPortal(t, "success")
+	cp := openFake(t, srv)
+	plan := CallbackPlan{Config: DefaultCallbackConfig()}
+	run := CallbackStepRunner(sshProfile(t, addr, fp), Secrets{SSH: "pw"}, cp, plan)
+	for _, s := range []CallbackStep{{Kind: StepApp, Code: "799"}, {Kind: StepIVR, Code: "0"}} {
+		if err := run(context.Background(), s); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(*calls) != 2 || (*calls)[0][0] != [2]string{"extension", "799"} {
+		t.Fatalf("app then IVR: %v", *calls)
+	}
+	ivr := (*calls)[1]
+	if !reflect.DeepEqual(ivr[23:27], [][2]string{{"entries[0][option]", "0"}, {"entries[0][mod_dest]", "4"}, {"entries[0][dest]", "5"}, {"entries[0][enabled]", "1"}}) {
+		t.Fatalf("the IVR entry goes to app id 5 from the state read: %v", ivr)
+	}
+}
+
+// snapPBX answers the queue snapshot: the table lookup, then the bash -s script with *members as the
+// ombu_queue_members rows. fail makes every SSH call fail.
+func snapPBX(t *testing.T, members *string, fail *bool, script *string) Profile {
+	addr, fp := fakeSSH(t, func(cmd string, in []byte) (string, string, int) {
+		if *fail {
+			return "", "sin conexión", 1
+		}
+		if cmd == mysqlCmd {
+			return "t\tpk\nombu_queue_departments\tqueue_id,department_id\nombu_queue_members\tqueue_member_id\n", "", 0
+		}
+		*script = string(in)
+		return "@@f03 queue\nqueue_id\textension\tstrategy\n5\t7510\trrmemory\n@@f03 params\nname\tvalue\njoinempty\tno\n" +
+			"@@f03 table ombu_queue_departments\nqueue_id\tdepartment_id\n5\t3\n" +
+			"@@f03 table ombu_queue_members\n" + *members, "", 0
+	})
+	return sshProfile(t, addr, fp)
+}
+
+func TestGuardQueueCoversQueueTables(t *testing.T) {
+	members := "queue_member_id\tqueue_id\tinterface\tpenalty\n1\t5\tSIP/2000\t0\n2\t5\tSIP/2001\t0\n"
+	fail := false
+	var script string
+	cp := &CallbackPortal{p: snapPBX(t, &members, &fail, &script), sec: Secrets{SSH: "pw"}}
+	q := CallbackQueue{ID: 5, Extension: "7510"}
+	ctx := context.Background()
+	err := cp.guardQueue(ctx, q, func() error {
+		members = "queue_member_id\tqueue_id\tinterface\tpenalty\n1\t5\tSIP/2000\t3\n2\t5\tSIP/2001\t0\n"
+		return nil
+	})
+	if err == nil || !strings.Contains(err.Error(), "ombu_queue_members") {
+		t.Fatalf("a changed agent penalty must be reported: %v", err)
+	}
+	if !strings.Contains(script, "SELECT * FROM `ombu_queue_members` WHERE queue_id = 5;") || !strings.Contains(script, "ombu_queue_params WHERE queue_id = 5") {
+		t.Fatalf("one script reads every table: %s", script)
+	}
+	err = cp.guardQueue(ctx, q, func() error { // re-saved: same agents, other order, renumbered keys
+		members = "queue_member_id\tqueue_id\tinterface\tpenalty\n8\t5\tSIP/2001\t0\n9\t5\tSIP/2000\t3\n"
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("the same rows in another order are no change: %v", err)
+	}
+	err = cp.guardQueue(ctx, q, func() error { fail = true; return errors.New("el portal rechazó el cambio: X") })
+	if err == nil || !strings.Contains(err.Error(), "rechazó el cambio: X; además, no se pudo verificar la cola 7510 después de guardar") {
+		t.Fatalf("both failures are reported: %v", err)
+	}
+}
+
+func TestPortalDialogFalseIsNoFailure(t *testing.T) {
+	for body, fails := range map[string]bool{
+		`{"state":"success","dialog":false}`:              false,
+		`{"state":"success","dialog":null}`:               false,
+		`{"state":"success","dialog":""}`:                 false,
+		`{"state":"success","dialog":{"errors":["mal"]}}`: true,
+	} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/login" {
+				http.SetCookie(w, &http.Cookie{Name: "sid", Value: "x"})
+				io.WriteString(w, `{"state":"success"}`)
+				return
+			}
+			io.WriteString(w, body)
+		}))
+		pt, _ := newPortal(Profile{API: APIConfig{BaseURL: srv.URL}})
+		pt.login(context.Background(), "admin", "pw")
+		_, err := pt.call(context.Background(), [][2]string{{"class", "x"}})
+		srv.Close()
+		if (err != nil) != fails || fails && !strings.Contains(err.Error(), "mal") {
+			t.Errorf("%s: want failure %v, got %v", body, fails, err)
+		}
 	}
 }

@@ -34,6 +34,16 @@ export interface CallbackView {
     "queues": pbx$0.CallbackQueueView[] | null;
     "config": pbx$0.CallbackConfig;
     "installed": boolean;
+
+    /**
+     * F-03's custom app, nil = none
+     */
+    "app": pbx$0.CallbackApp | null;
+
+    /**
+     * F-03's breakout IVR, nil = none
+     */
+    "ivr": pbx$0.CallbackIVR | null;
 }
 
 export interface PinApplyResult {
