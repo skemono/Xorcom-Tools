@@ -9,3 +9,4 @@
 *.woff binary
 *.woff2 binary
 *.exe binary
+pbx/testdata/*.conf text eol=lf
