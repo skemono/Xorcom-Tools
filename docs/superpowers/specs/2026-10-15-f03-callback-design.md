@@ -198,7 +198,7 @@ The callback was proven end to end on queue 7599. Callers came from V15 through 
 3. **V15 must route every number a callback can dial.** V16 sends the callback to V15 with the dialed number as the DID. A DID that V15 does not route falls into its catch-all route, **a production ring group** (staff phones), which ends in a busy announcement that *answers*. The callback then enters the queue with nobody on the line. A test route that carried a caller-ID filter (`CID Number` = the DID) caused exactly this. Before production, V15 needs explicit routes for callback numbers, and no CID filter on them.
 4. **The agent needs a plain SIP device.** Extension 2000's "CloudPhone Desktop" device cannot be used by a SIP softphone. Testing with several lines in one softphone also hides calls: Linphone stops the audio of the active call when another of its own lines rings.
 
-**Open product decision:** the callback treats *answered* as *the customer picked up*. Any announcement that answers (item 3, voicemail, a carrier message) would queue a dead call. A "press 1 to be connected" confirmation in `callback_out` before the queue would prevent that.
+**Deferred by the user (2026-10-16), kept as a known limit:** the callback treats *answered* as *the customer picked up*. Any announcement that answers (item 3, voicemail, a carrier message) would queue a dead call. A "press 1 to be connected" confirmation in `callback_out` before the queue would prevent that.
 
 ## 9. Plan step 1: hand-made setup on the test box (writes, agreed with the user)
 
