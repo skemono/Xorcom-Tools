@@ -32,29 +32,31 @@
   const st = $derived(view?.state)
   // Which queues can take or drop callback comes from Go (CallbackQueueView): the sheet only shows it.
   const queues = $derived<CallbackQueueView[]>(view?.queues ?? [])
-  const usable = (v: CallbackQueueView) => (mode === 'install' ? !v.foreign : v.hooked)
+  const usable = (v: CallbackQueueView) => (mode === 'install' ? !v.foreign : v.removable)
+  // Quitar with no queue cleans up shared pieces a stopped install left, while no queue is hooked.
+  const leftovers = $derived(!!view && (!!view.app || !!view.ivr || !!view.state.fileExists) && !queues.some((v) => v.hooked))
+  const canPreview = $derived(picked.length > 0 || (mode === 'remove' && leftovers))
   const steps = $derived<CallbackStep[]>((result?.steps ?? preview?.plan.steps) ?? [])
   const canApply = $derived(!!preview && !result && preview.blocked === 0 && preview.new > 0 && idle)
   const verb = $derived(mode === 'install' ? 'Aplicar' : 'Quitar')
   const waiting = $derived(
     reading === 'state' ? 'Leyendo la PBX…' : reading === 'preview' ? 'Preparando la vista previa…'
-      : result ? '' : !st ? '' : !st.hasCC ? '' : picked.length === 0 ? 'Elija al menos una cola.'
+      : result ? '' : !st ? '' : !st.hasCC ? '' : !canPreview ? 'Elija al menos una cola.'
       : mode === 'install' && !/^\d{3,20}$/.test(testNumber) ? 'Escriba un número de prueba para revisar la ruta de salida.'
-      : !preview ? 'Genere la vista previa.' : preview.blocked > 0 ? 'Hay pasos bloqueados: quite esas colas.'
+      : !preview ? (picked.length === 0 ? 'Sin colas elegidas: la vista previa quita lo que quedó instalado (aplicación, IVR, archivo).' : 'Genere la vista previa.')
+      : preview.blocked > 0 ? 'Hay pasos bloqueados: quite esas colas.'
       : preview.new === 0 ? 'No hay cambios: todo ya está así.' : '',
   )
   const fileState = $derived(!st ? '' : !st.fileExists ? 'no existe'
     : !view?.installed ? 'distinto: editado a mano (se reemplaza al aplicar)'
     : st.contexts === 3 ? 'instalado' : 'instalado, contextos sin cargar (se recarga al aplicar)')
-  // Estado shows what the PBX has, never the editable settings.
-  const CB_APP = 'create_callback,s,1'
-  const foundApp = $derived(st?.apps?.find((a) => a.custom === CB_APP))
-  const appState = $derived(foundApp ? `código ${foundApp.extension} «${foundApp.description}»` : 'no existe')
-  const ivrState = $derived.by(() => {
-    const ivr = foundApp && st?.ivrs?.find((i) => i.entries?.length === 1 && i.entries[0].destKind === 'custom_application' && i.entries[0].destIndex === foundApp.id)
-    return ivr ? `«${ivr.description}» (Nº ${ivr.id}) · tecla ${ivr.entries![0].option}` : 'no existe'
-  })
-  const lit = $derived(!st?.hasCC ? 0 : picked.length === 0 ? 3 : !preview ? 4 : !result ? 5 : result.applied > 0 && !portalMsg ? 6 : 0)
+  // Estado shows what the PBX has (Go finds F-03's app and IVR), never the editable settings.
+  const appState = $derived(view?.app ? `código ${view.app.extension} «${view.app.description}»` : 'no existe')
+  const ivrState = $derived(view?.ivr ? `«${view.ivr.description}» (Nº ${view.ivr.id}) · tecla ${view.ivr.entries?.[0]?.option ?? '?'}` : 'no existe')
+  // A Quitar whose file step waits for the portal's Apply: deleting the file, or rewriting it.
+  const fileWaits = $derived(mode === 'remove' && !!preview?.plan.fileWaits)
+  const waitsDelete = $derived(!!preview?.plan.steps?.some((s) => s.kind === 'delfile'))
+  const lit = $derived(!st?.hasCC ? 0 : !canPreview ? 3 : !preview ? 4 : !result ? 5 : result.applied > 0 && !portalMsg ? 6 : 0)
   const tilts = ['-3deg', '-1.5deg', '-4.5deg']
 
   // Only the newest read may land: a PBX switch mid-read must not show the old PBX.
@@ -98,7 +100,7 @@
   })
 
   async function runPreview() {
-    if (!cfg || picked.length === 0) return
+    if (!cfg || !canPreview) return
     reading = 'preview'
     note = ''
     preview = null
@@ -201,7 +203,7 @@
   }
 
   const failedRow = (s: CallbackStep) => s.status === 'bloqueado' || s.status === 'fallo'
-  const planned = (s: CallbackStep) => (s.status === 'omitir' ? 'Ya está así: se omite' : s.status === 'bloqueado' ? `Bloqueado: ${s.error}` : s.after)
+  const planned = (s: CallbackStep) => (s.status === 'bloqueado' ? `Bloqueado: ${s.error}` : s.after) // an omitir step's after says why
   const showFile = $derived(!!preview?.plan.dialplan)
 </script>
 
@@ -250,8 +252,13 @@
               <input type="checkbox" checked={picked.includes(v.queue.extension)} onchange={(e) => toggle(v.queue.extension, e.currentTarget.checked)} disabled={!idle || !usable(v)} />
               Nº {v.queue.extension} · {v.queue.description}
             </label>
-            {#if v.attached}<span class="tag">con devolución</span>{/if}
+            {#if v.attached}
+              <span class="tag">{v.live ? 'con devolución' : 'con devolución (pendiente de aplicar en la PBX)'}{v.priorityApp ? ` · app ${v.priorityApp}` : ''}</span>
+            {:else if !v.hooked && v.live}
+              <span class="tag">quitada (pendiente de aplicar en la PBX)</span>
+            {/if}
             {#if v.foreign && mode === 'install'}<span class="why">{v.foreign}</span>{/if}
+            {#if mode === 'remove' && !v.removable}<span class="tag">esta cola no tiene devolución de llamada</span>{/if}
             {#if v.waiting}<span class="tag">{v.waiting} pendiente(s)</span>{/if}
           </li>
         {/each}
@@ -267,7 +274,7 @@
           <label for="cb-app">Código de la aplicación</label>
           <input id="cb-app" class="control mono" bind:value={cfg.appCode} disabled={!idle} spellcheck="false" />
           <label for="cb-prio">Prioridad</label>
-          <input id="cb-prio" class="control" type="number" min="0" bind:value={cfg.priority} disabled={!idle} />
+          <input id="cb-prio" class="control" type="number" min="1" max="99" bind:value={cfg.priority} disabled={!idle} />
           <label for="cb-retries">Reintentos</label>
           <input id="cb-retries" class="control" type="number" min="0" bind:value={cfg.retries} disabled={!idle} />
           <label for="cb-mins">Minutos entre reintentos</label>
@@ -365,7 +372,11 @@
           <h2 class="step-head"><span class="disc">6</span>Recargue la PBX{#if portalMsg && !reloading}<span class="ok"><Icon name="check" /></span>{/if}</h2>
           <p class="reload-why">Para asegurar que la PBX use los cambios, aplíquelos. Esto recarga la PBX y aplica también cualquier otro cambio pendiente del portal.</p>
           {#if mode === 'install'}
-            <p class="reload-why">Grabe en el portal el anuncio periódico de la cola: «Presione {cfg.key} para que le devolvamos la llamada».</p>
+            <p class="reload-why">Grabe en el portal el anuncio periódico de la cola: «Presione {preview.plan.config.key} para que le devolvamos la llamada».</p>
+          {:else if fileWaits}
+            <p class="reload-why">{waitsDelete
+              ? 'Después de recargar la PBX, vuelva a «Quitar» para borrar el archivo de devolución de llamada.'
+              : 'Después de recargar la PBX, el archivo de devolución de llamada se actualiza la próxima vez que use Instalar o Quitar.'}</p>
           {/if}
           <div class="reload-row">
             <!-- Two-step: the second click of a double-click (detail 2) must never confirm. -->
@@ -390,7 +401,7 @@
     <button class="btn primary" onclick={apply} disabled={!canApply}>
       {#if applying}<span class="spin"></span>Aplicando… {done} de {steps.length}{:else}<span class="disc">5</span>{verb}{/if}
     </button>
-    <button class="btn" onclick={runPreview} disabled={!idle || !cfg || picked.length === 0 || !st?.hasCC}>
+    <button class="btn" onclick={runPreview} disabled={!idle || !cfg || !canPreview || !st?.hasCC}>
       {#if reading === 'preview'}<span class="spin"></span>Leyendo…{:else}Vista previa{/if}
     </button>
     {#if preview || result}
