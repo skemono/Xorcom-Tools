@@ -114,14 +114,14 @@ var callbackSQL = []struct{ name, sql string }{
 func callbackStateScript(codes []string) string {
 	var b strings.Builder
 	for _, q := range callbackSQL {
-		fmt.Fprintf(&b, "echo '%s%s'\n%s <<'SQL'\n%s\nSQL\n", sectionMark, q.name, mysqlCmd, q.sql)
+		fmt.Fprintf(&b, "echo '%s%s'\n%s <<'SQL' || echo '%serror %s'\n%s\nSQL\n", sectionMark, q.name, mysqlCmd, sectionMark, q.name, q.sql)
 	}
 	fmt.Fprintf(&b, "echo '%srecdir'\nls -d /var/lib/ombutel/static/*/recordings 2>/dev/null\n", sectionMark)
 	fmt.Fprintf(&b, "echo '%sfile'\nif [ -e %s ]; then echo 1; base64 -w0 %s; echo; fi\n", sectionMark, callbackFile, callbackFile)
 	fmt.Fprintf(&b, "echo '%slog'\nstat -c %%U %s 2>/dev/null\n", sectionMark, callbackLog)
 	fmt.Fprintf(&b, "echo '%scontexts'\nfor c in create_callback check_position callback_out; do asterisk -rx \"dialplan show $c\" | grep -q \"Context '$c'\" && echo $c; done\n", sectionMark)
 	fmt.Fprintf(&b, "echo '%staken'\nfor c in %s; do asterisk -rx \"dialplan show $c@cos-all-local\" | grep -q 'There is no existence' || echo $c; done\n", sectionMark, strings.Join(codes, " "))
-	fmt.Fprintf(&b, "echo '%swaiting'\ni=$(asterisk -rx 'database get pbx instance' | sed -n 's/^Value: //p')\n[ -n \"$i\" ] && asterisk -rx \"database show $i/callback\"\n", sectionMark)
+	fmt.Fprintf(&b, "echo '%swaiting'\ni=$(asterisk -rx 'database get pbx instance' | sed -n 's/^Value: //p')\nif [ -n \"$i\" ]; then asterisk -rx \"database show $i/callback\"; fi\n", sectionMark)
 	return b.String()
 }
 
@@ -142,7 +142,7 @@ func ReadCallbackState(ctx context.Context, p Profile, sec Secrets, codes []stri
 	return parseCallbackState(out)
 }
 
-var reWaiting = regexp.MustCompile(`^/[^/]+/callback/([0-9]+)/([0-9]+\.[0-9]+)\s*:\s*(\S*)`)
+var reWaiting = regexp.MustCompile(`^/[^/]+/callback/([0-9]+)/([0-9]+\.[0-9]+)\s*:\s*([0-9]*)\s*$`)
 
 func parseCallbackState(out string) (CallbackState, error) {
 	sec := map[string]string{}
@@ -155,6 +155,11 @@ func parseCallbackState(out string) (CallbackState, error) {
 		}
 		if name != "" {
 			sec[name] += line
+		}
+	}
+	for k := range sec {
+		if x, ok := strings.CutPrefix(k, "error "); ok {
+			return CallbackState{}, fmt.Errorf("la PBX no respondió a la consulta «%s»", x)
 		}
 	}
 	if _, ok := sec["waiting"]; !ok {

@@ -158,6 +158,25 @@ func TestParseCallbackStateEmptyPBX(t *testing.T) {
 	}
 }
 
+func TestParseCallbackStateFailures(t *testing.T) {
+	if _, err := parseCallbackState(cannedState("") + "@@f03 error apps\n"); err == nil {
+		t.Fatal("a failed query must be an error")
+	}
+	st, err := parseCallbackState(strings.Replace(cannedState(""), ": 55551234", ": 55x51234", 1))
+	if err != nil || len(st.Waiting) != 0 {
+		t.Fatalf("non-digit number must not parse: %+v %v", st.Waiting, err)
+	}
+	if _, err := parseCallbackState("@@f03 file\n1\n!!!\n@@f03 waiting\n"); err == nil {
+		t.Fatal("invalid base64 must be an error")
+	}
+	s := callbackStateScript([]string{"799"})
+	for _, w := range []string{`if [ -n "$i" ]; then`, "|| echo '@@f03 error queues'"} {
+		if !strings.Contains(s, w) {
+			t.Errorf("script lacks %q", w)
+		}
+	}
+}
+
 func TestReadCallbackStateOneSession(t *testing.T) {
 	var cmds []string
 	var script string
