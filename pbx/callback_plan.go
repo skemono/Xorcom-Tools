@@ -297,6 +297,7 @@ func PlanInstall(st CallbackState, c CallbackConfig, queues []string) (CallbackP
 		return ""
 	}
 	selected := map[string]bool{}
+	var uniq []string
 	var routes []CallbackRoute
 	var perQueue []CallbackStep
 	for _, ext := range queues {
@@ -308,6 +309,7 @@ func PlanInstall(st CallbackState, c CallbackConfig, queues []string) (CallbackP
 			continue
 		}
 		selected[ext] = true
+		uniq = append(uniq, ext)
 		block := st.foreign(*q)
 		if block == "" && !reDigits.MatchString(ext) {
 			block = fmt.Sprintf("la cola «%s» no tiene un número válido", ext)
@@ -349,7 +351,7 @@ func PlanInstall(st CallbackState, c CallbackConfig, queues []string) (CallbackP
 		}
 	}
 	sort.Slice(routes, func(i, j int) bool { return routes[i].Queue < routes[j].Queue })
-	plan := CallbackPlan{Config: c, Queues: queues, Routes: routes, Dialplan: CallbackDialplan(c, playback, routes)}
+	plan := CallbackPlan{Config: c, Queues: uniq, Routes: routes, Dialplan: CallbackDialplan(c, playback, routes)}
 	appBlock := ""
 	if app == nil && st.codeTaken(c.AppCode) {
 		appBlock = fmt.Sprintf("el código %s ya está en uso en la PBX: elija otro", c.AppCode)
@@ -391,6 +393,7 @@ func PlanRemove(st CallbackState, queues []string, dropWaiting bool) (CallbackPl
 	}
 	app, ivr := st.CallbackApp(), st.CallbackIVR()
 	selected := map[string]bool{}
+	var uniq []string
 	var steps []CallbackStep
 	for _, ext := range queues {
 		q := st.Queue(ext)
@@ -407,8 +410,13 @@ func PlanRemove(st CallbackState, queues []string, dropWaiting bool) (CallbackPl
 			return CallbackPlan{}, fmt.Errorf("la cola %s no tiene devolución de llamada", ext)
 		}
 		selected[ext] = true
+		uniq = append(uniq, ext)
 		if hooked {
-			steps = append(steps, step(StepDetach, ext, "", fmt.Sprintf("Cola %s · %s", ext, q.Description), queueNow(*q), "IVR: ninguno · membergosub: ninguno", false, ""))
+			after := "IVR: ninguno · membergosub: ninguno"
+			if q.IVRID != 0 && (ivr == nil || q.IVRID != ivr.ID) { // a foreign IVR is never touched
+				after = fmt.Sprintf("IVR: %s (se mantiene) · membergosub: ninguno", q.IVRName)
+			}
+			steps = append(steps, step(StepDetach, ext, "", fmt.Sprintf("Cola %s · %s", ext, q.Description), queueNow(*q), after, false, ""))
 		}
 		if pa != nil {
 			steps = append(steps, step(StepDelPrioApp, ext, pa.Extension, fmt.Sprintf("Aplicación %s «%s»", pa.Extension, pa.Description), "existe", "se elimina", false, ""))
@@ -434,7 +442,7 @@ func PlanRemove(st CallbackState, queues []string, dropWaiting bool) (CallbackPl
 			routes = append(routes, CallbackRoute{Queue: q.Extension, App: pa.Extension})
 		}
 	}
-	plan := CallbackPlan{Remove: true, DropWaiting: dropWaiting, Queues: queues, Routes: routes}
+	plan := CallbackPlan{Remove: true, DropWaiting: dropWaiting, Queues: uniq, Routes: routes}
 	if users == 0 {
 		if ivr != nil {
 			steps = append(steps, step(StepDelIVR, "", "", "IVR «"+ivr.Description+"»", "existe", "se elimina", false, ""))
@@ -492,7 +500,11 @@ func VerifyCallback(plan CallbackPlan, steps []CallbackStep, st CallbackState) [
 		case StepDetach:
 			ok = q != nil && !st.hooked(*q)
 		case StepDelPrioApp:
-			ok = st.PrioApp(pr) == nil
+			for _, a := range st.Apps { // by code: the priority is already gone by now
+				if a.Extension == s.Code && a.DestKind == "queue_priority" {
+					ok = false
+				}
+			}
 		case StepDelPriority:
 			ok = pr == nil
 		case StepDropWaiting:
@@ -525,6 +537,8 @@ func RunCallback(ctx context.Context, plan CallbackPlan, do func(context.Context
 		switch {
 		case out[i].Status == CbSkip:
 			out[i].Status, out[i].Error = CbSkipped, "ya estaba así"
+		case out[i].Status == CbBlocked: // a blocked step never runs, and nothing after it does
+			out[i].Status, failed = CbNotRun, true
 		case failed:
 			out[i].Status, out[i].Error = CbNotRun, "no se ejecutó: falló un paso anterior"
 		default:

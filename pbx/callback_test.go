@@ -394,6 +394,50 @@ func TestPlanRoutesDigitsOnly(t *testing.T) {
 	if _, err := PlanRemove(st, []string{"7510"}, false); err == nil || !strings.Contains(err.Error(), "79x") {
 		t.Fatalf("a kept route with a non-digit code is an error: %v", err)
 	}
+	if _, err := PlanInstall(st, DefaultCallbackConfig(), []string{"7510"}); err == nil || !strings.Contains(err.Error(), "código no numérico") {
+		t.Fatalf("install keeps the same route and refuses it too: %v", err)
+	}
+	st = installed()
+	st.Apps[1].Extension = "79x"
+	p, err = PlanInstall(st, DefaultCallbackConfig(), []string{"7510"})
+	if err != nil || p.Steps[5].Status != CbBlocked || !strings.Contains(p.Steps[5].Error, "aplicación de prioridad «79x»") || len(p.Routes) != 0 {
+		t.Fatalf("a selected queue with a non-digit priority app is blocked: %s %+v %v", kinds(p), p.Steps[5], err)
+	}
+}
+
+func TestPlanQueuesDedupedAndForeignIVRKept(t *testing.T) {
+	p, err := PlanInstall(freshPBX(), DefaultCallbackConfig(), []string{"75102", "7510", "75102"})
+	if err != nil || strings.Join(p.Queues, ",") != "75102,7510" {
+		t.Fatalf("queues deduped in first-seen order: %v %v", p.Queues, err)
+	}
+	st := freshPBX()
+	st.Queues[0].IVRID, st.Queues[0].IVRName, st.Queues[0].MemberGosub = 2, "PRINCIPAL", "check_position"
+	r, err := PlanRemove(st, []string{"7510", "7510"}, false)
+	if err != nil || len(r.Queues) != 1 || r.Steps[0].Kind != StepDetach || r.Steps[0].After != "IVR: PRINCIPAL (se mantiene) · membergosub: ninguno" {
+		t.Fatalf("a foreign IVR is kept and the plan says so: %+v %v", r, err)
+	}
+}
+
+func TestRunCallbackNeverRunsBlocked(t *testing.T) {
+	plan := CallbackPlan{Steps: []CallbackStep{{Kind: StepApp, Status: CbNew}, {Kind: StepQueue, Status: CbBlocked, Error: "la cola ya tiene el IVR «X»"}, {Kind: StepIVR, Status: CbNew}}}
+	var ran []string
+	got := RunCallback(context.Background(), plan, func(_ context.Context, s CallbackStep) error { ran = append(ran, s.Kind); return nil }, func(int) {})
+	if strings.Join(ran, ",") != "app" || got[0].Status != CbApplied || got[1].Status != CbNotRun || got[1].Error != "la cola ya tiene el IVR «X»" || got[2].Status != CbNotRun {
+		t.Fatalf("blocked steps never run and stop the rest: %v %+v", ran, got)
+	}
+}
+
+func TestVerifyDelPrioAppByCode(t *testing.T) {
+	st := installed()
+	st.Priorities = nil // the priority is already gone; the app with its code is still there
+	steps := []CallbackStep{{Kind: StepDelPrioApp, Queue: "7510", Code: "797", Status: CbApplied}}
+	if got := VerifyCallback(CallbackPlan{Remove: true}, steps, st); got[0].Status != CbFailed {
+		t.Fatalf("the app is still there: %+v", got[0])
+	}
+	st.Apps = st.Apps[:1]
+	if got := VerifyCallback(CallbackPlan{Remove: true}, steps, st); got[0].Status != CbApplied {
+		t.Fatalf("the app is gone: %+v", got[0])
+	}
 }
 
 func TestVerifyCallback(t *testing.T) {
