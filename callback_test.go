@@ -1,7 +1,6 @@
 package main
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/skemono/Xorcom-Tools/pbx"
@@ -46,7 +45,19 @@ func TestCallbackApplyRefusesChangedPBX(t *testing.T) {
 	if !sameSteps(a, c) {
 		t.Fatal("only kind, queue, code and status are compared")
 	}
-	if err := errChanged; !strings.Contains(err.Error(), "cambió desde la vista previa") {
-		t.Fatal(err)
+	d := cbPlan(pbx.CbNew, pbx.CbSkip)
+	d.Dialplan = "otro dialplan"
+	if sameSteps(a, d) {
+		t.Fatal("a different dialplan must not match")
+	}
+}
+
+func TestCallbackTakeClaimsOnce(t *testing.T) {
+	s := &CallbackService{last: &callbackRun{profileID: "A"}}
+	if s.take() == nil {
+		t.Fatal("the first Apply gets the preview")
+	}
+	if s.take() != nil {
+		t.Fatal("a second Apply must find no preview")
 	}
 }

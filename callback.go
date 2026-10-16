@@ -139,9 +139,7 @@ func (s *CallbackService) Apply() (CallbackResult, error) {
 	if err != nil {
 		return CallbackResult{}, err
 	}
-	s.mu.Lock()
-	run := s.last
-	s.mu.Unlock()
+	run := s.take() // claimed once: any refusal from here on needs a new preview
 	if err := run.check(p.ID); err != nil {
 		return CallbackResult{}, err
 	}
@@ -171,7 +169,9 @@ func (s *CallbackService) Apply() (CallbackResult, error) {
 	}
 	progress := func(done int) { application.Get().Event.Emit("callback:avance", done) }
 	steps := pbx.RunCallback(ctx, run.plan, pbx.CallbackStepRunner(p, sec, cp, run.plan), progress)
-	if after, err := pbx.ReadCallbackState(ctx, p, sec, nil); err == nil {
+	vctx, vcancel := context.WithTimeout(context.Background(), callbackReadTimeout) // a long run must not starve the read-back
+	defer vcancel()
+	if after, err := pbx.ReadCallbackState(vctx, p, sec, nil); err == nil {
 		steps = pbx.VerifyCallback(run.plan, steps, after)
 	} else {
 		for i := range steps {
@@ -193,10 +193,16 @@ func (s *CallbackService) Apply() (CallbackResult, error) {
 			res.NotRun++
 		}
 	}
-	s.mu.Lock()
-	s.last = nil // done or stopped: the next Aplicar needs a fresh preview of what is there now
-	s.mu.Unlock()
 	return res, nil
+}
+
+// take returns the stored preview and clears it, so two Apply calls cannot both run it.
+func (s *CallbackService) take() *callbackRun {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	run := s.last
+	s.last = nil
+	return run
 }
 
 func replan(st pbx.CallbackState, prev pbx.CallbackPlan) (pbx.CallbackPlan, error) {
