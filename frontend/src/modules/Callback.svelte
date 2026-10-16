@@ -234,7 +234,14 @@
         </ul>
       </li>
       <li>Grabe en el portal el anuncio periódico de la cola: «Presione {cfg?.key ?? '0'} para que le devolvamos la llamada».</li>
-      <li>Límite conocido: la devolución se da por atendida si contesta cualquier cosa (buzón, anuncio); no pide «presione 1» para confirmar.</li>
+      <li>Antes de usar la herramienta, aplique en el portal los cambios pendientes, y no edite la misma cola en el portal mientras presiona Aplicar o Quitar.</li>
+      <li>Límites conocidos:
+        <ul>
+          <li>La devolución se da por atendida si contesta cualquier cosa (buzón, anuncio); no pide «presione 1» para confirmar.</li>
+          <li>Sale cuando un agente atiende a alguien que llamó después; si nadie más llama a la cola, el pedido espera.</li>
+          <li>Quien llama con número oculto no puede pedirla: al marcar la tecla, la llamada termina sin anotarse.</li>
+        </ul>
+      </li>
     </ul>
   </details>
 
