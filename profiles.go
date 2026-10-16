@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/skemono/Xorcom-Tools/pbx"
 )
@@ -115,6 +116,43 @@ func (s *ProfileService) active() (pbx.Profile, pbx.Secrets, error) {
 		return pbx.Profile{}, pbx.Secrets{}, fmt.Errorf("no se pudieron leer las contraseñas: %w", err)
 	}
 	return p, sec, nil
+}
+
+const portalTimeout = 60 * time.Second
+
+// ApplyPortal runs the portal's own Apply with the profile's API credentials (F-01). It reloads
+// the PBX with ALL outstanding portal changes; the UI only calls it after a two-step confirmation.
+func (s *ProfileService) ApplyPortal() (string, error) {
+	p, sec, err := s.active()
+	if err != nil {
+		return "", err
+	}
+	if !p.API.Enabled || sec.API == "" {
+		return "", errors.New("falta la contraseña del portal: agréguela en F-01 (canal API)")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), portalTimeout)
+	defer cancel()
+	msg, err := pbx.PortalApplyChanges(ctx, p, sec.API)
+	if err != nil {
+		return "", errors.New(pbx.Describe(err))
+	}
+	return msg, nil
+}
+
+// PendingPortalChanges reports whether a portal Apply would also push changes someone saved in the
+// portal and never applied (the portal's own Apply banner).
+func (s *ProfileService) PendingPortalChanges() (bool, error) {
+	p, sec, err := s.active()
+	if err != nil {
+		return false, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), portalTimeout)
+	defer cancel()
+	pending, err := pbx.PortalPending(ctx, p, sec)
+	if err != nil {
+		return false, errors.New(pbx.Describe(err))
+	}
+	return pending, nil
 }
 
 // Test checks the saved profile's enabled channels (not unsaved form edits).

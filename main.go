@@ -26,6 +26,7 @@ func main() {
 			// Tool registry (Go side): one service per form.
 			application.NewService(profiles),
 			application.NewService(&PinService{profiles: profiles}),
+			application.NewService(&CallbackService{profiles: profiles}),
 			application.NewService(&UpdateService{}),
 		},
 		Assets: application.AssetOptions{Handler: application.AssetFileServerFS(assets)},

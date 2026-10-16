@@ -44,7 +44,7 @@ type PinApplyResult struct {
 }
 
 const (
-	pinTimeout   = 60 * time.Second
+	pinTimeout   = portalTimeout
 	applyTimeout = 5 * time.Minute // one NOT EXISTS lookup per row; the real list is 5 772 rows
 	maxCSV       = 1 << 20
 )
@@ -155,40 +155,9 @@ func (s *PinService) Apply(listID int) (PinApplyResult, error) {
 	return res, nil
 }
 
-// ApplyPortal runs the portal's own Apply with the profile's API credentials (F-01). It reloads
-// the PBX with ALL outstanding portal changes; the UI only calls it after a two-step confirmation.
-func (s *PinService) ApplyPortal() (string, error) {
-	p, sec, err := s.profiles.active()
-	if err != nil {
-		return "", err
-	}
-	if !p.API.Enabled || sec.API == "" {
-		return "", errors.New("falta la contraseña del portal: agréguela en F-01 (canal API)")
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), pinTimeout)
-	defer cancel()
-	msg, err := pbx.PortalApplyChanges(ctx, p, sec.API)
-	if err != nil {
-		return "", errors.New(pbx.Describe(err))
-	}
-	return msg, nil
-}
-
-// PendingPortalChanges reports whether a portal Apply would also push changes someone saved in the
-// portal and never applied (the portal's own Apply banner).
-func (s *PinService) PendingPortalChanges() (bool, error) {
-	p, sec, err := s.profiles.active()
-	if err != nil {
-		return false, err
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), pinTimeout)
-	defer cancel()
-	pending, err := pbx.PortalPending(ctx, p, sec)
-	if err != nil {
-		return false, errors.New(pbx.Describe(err))
-	}
-	return pending, nil
-}
+// ApplyPortal and PendingPortalChanges live on ProfileService (F-02 and F-03 share them); these keep F-02's bindings.
+func (s *PinService) ApplyPortal() (string, error)        { return s.profiles.ApplyPortal() }
+func (s *PinService) PendingPortalChanges() (bool, error) { return s.profiles.PendingPortalChanges() }
 
 // check refuses an Apply that would not write exactly what the user previewed.
 func (pl *pinPlan) check(profileID string, listID int) error {
