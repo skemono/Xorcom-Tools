@@ -3,7 +3,14 @@ package pbx
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
+	"mime"
+	"mime/multipart"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -256,7 +263,7 @@ func TestPlanInstallResumesPartial(t *testing.T) {
 		t.Fatalf("a complete install plans nothing: %s %v", kinds(again), err)
 	}
 	st.Queues[0].IVRID, st.Queues[0].MemberGosub = 0, "" // stopped before the queue step
-	st.Priorities, st.Apps = nil, st.Apps[:1]           // …and before the priority pieces
+	st.Priorities, st.Apps = nil, st.Apps[:1]            // …and before the priority pieces
 	st.TakenCodes = map[string]bool{"799": true}         // so 797 is free again and the file stays the same
 	p, _ := PlanInstall(st, DefaultCallbackConfig(), []string{"7510"})
 	if got := kinds(p); got != "file:omitir log:omitir app:omitir ivr:omitir priority:nuevo prioapp:nuevo queue:nuevo" {
@@ -336,10 +343,20 @@ func TestPlanInstallMissingRecording(t *testing.T) {
 func TestPlanInstallRefusals(t *testing.T) {
 	st := freshPBX()
 	for name, f := range map[string]func() error{
-		"no CC":         func() error { s := st; s.HasCC = false; _, err := PlanInstall(s, DefaultCallbackConfig(), []string{"7510"}); return err },
+		"no CC": func() error {
+			s := st
+			s.HasCC = false
+			_, err := PlanInstall(s, DefaultCallbackConfig(), []string{"7510"})
+			return err
+		},
 		"no queues":     func() error { _, err := PlanInstall(st, DefaultCallbackConfig(), nil); return err },
 		"unknown queue": func() error { _, err := PlanInstall(st, DefaultCallbackConfig(), []string{"9999"}); return err },
-		"bad config":    func() error { c := DefaultCallbackConfig(); c.Prefix = "x"; _, err := PlanInstall(st, c, []string{"7510"}); return err },
+		"bad config": func() error {
+			c := DefaultCallbackConfig()
+			c.Prefix = "x"
+			_, err := PlanInstall(st, c, []string{"7510"})
+			return err
+		},
 	} {
 		if f() == nil {
 			t.Errorf("%s: must be refused", name)
@@ -546,5 +563,256 @@ func TestRouteCheck(t *testing.T) {
 	}
 	if _, err := RouteCheck(context.Background(), p, Secrets{SSH: "pw"}, "1;id"); err == nil {
 		t.Fatal("non-digits must never reach asterisk -rx")
+	}
+}
+
+func TestQueueChangesOnlyAllowsF03Fields(t *testing.T) {
+	before := map[string]string{"queue_id": "1", "strategy": "rrmemory", "ivr_id": "", "param:membergosub": ""}
+	after := map[string]string{"queue_id": "1", "strategy": "rrmemory", "ivr_id": "11", "param:membergosub": "check_position"}
+	if d := queueChanges(before, after); len(d) != 0 {
+		t.Fatalf("IVR and membergosub are the only fields F-03 may change: %v", d)
+	}
+	after["strategy"], after["param:joinempty"] = "ringall", "no"
+	d := queueChanges(before, after)
+	if len(d) != 2 || !strings.Contains(strings.Join(d, ";"), "strategy: «rrmemory» → «ringall»") || !strings.Contains(strings.Join(d, ";"), "param:joinempty") {
+		t.Fatalf("every other difference is reported, sorted: %v", d)
+	}
+}
+
+// recPortal answers the login and records each module request's fields in order (multipart saves
+// and urlencoded pbx_request calls alike). A getContent request answers editHTML as the form.
+func recPortalHTML(t *testing.T, state, editHTML string) (*httptest.Server, *[][][2]string) {
+	var calls [][][2]string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/login" {
+			http.SetCookie(w, &http.Cookie{Name: "sid", Value: "x"})
+			io.WriteString(w, `{"state":"success"}`)
+			return
+		}
+		var fields [][2]string
+		mt, params, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
+		if mt == "multipart/form-data" {
+			mr := multipart.NewReader(r.Body, params["boundary"])
+			for {
+				part, err := mr.NextPart()
+				if err != nil {
+					break
+				}
+				v, _ := io.ReadAll(part)
+				fields = append(fields, [2]string{part.FormName(), string(v)})
+			}
+		} else {
+			r.ParseForm()
+			for _, k := range []string{"class", "method", "mode", "data", "baseurl"} {
+				fields = append(fields, [2]string{k, r.PostForm.Get(k)})
+			}
+		}
+		calls = append(calls, fields)
+		b, _ := json.Marshal(map[string]string{"state": state, "html": editHTML})
+		w.Write(b)
+	}))
+	t.Cleanup(srv.Close)
+	return srv, &calls
+}
+
+func recPortal(t *testing.T, state string) (*httptest.Server, *[][][2]string) {
+	return recPortalHTML(t, state, "<form></form>")
+}
+
+func openFake(t *testing.T, srv *httptest.Server) *CallbackPortal {
+	p := Profile{API: APIConfig{BaseURL: srv.URL, Enabled: true}}
+	cp, err := OpenCallbackPortal(context.Background(), p, Secrets{API: "pw"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return cp
+}
+
+func TestPortalCallMultipartAndState(t *testing.T) {
+	srv, calls := recPortal(t, "success")
+	pt, _ := newPortal(Profile{API: APIConfig{BaseURL: srv.URL}})
+	if err := pt.login(context.Background(), "admin", "pw"); err != nil {
+		t.Fatal(err)
+	}
+	r, err := pt.call(context.Background(), [][2]string{{"class", "custom_app"}, {"method", "put"}})
+	if err != nil || r.HTML != "<form></form>" {
+		t.Fatalf("reply %+v err %v", r, err)
+	}
+	got := (*calls)[0]
+	if got[0] != [2]string{"class", "custom_app"} || got[len(got)-1] != [2]string{"baseurl", srv.URL} {
+		t.Fatalf("fields keep their order and end with baseurl: %v", got)
+	}
+	srv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/login" {
+			http.SetCookie(w, &http.Cookie{Name: "sid", Value: "x"})
+			io.WriteString(w, `{"state":"success"}`)
+			return
+		}
+		io.WriteString(w, `{"state":"exception","notification":{"text":"Código duplicado"}}`)
+	}))
+	t.Cleanup(srv2.Close)
+	pt2, _ := newPortal(Profile{API: APIConfig{BaseURL: srv2.URL}})
+	pt2.login(context.Background(), "admin", "pw")
+	if _, err := pt2.call(context.Background(), [][2]string{{"class", "x"}}); err == nil || !strings.Contains(err.Error(), "Código duplicado") {
+		t.Fatalf("a refused save carries the portal's text: %v", err)
+	}
+}
+
+func TestPortalCallDialogIsFailure(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/login" {
+			http.SetCookie(w, &http.Cookie{Name: "sid", Value: "x"})
+			io.WriteString(w, `{"state":"success"}`)
+			return
+		}
+		io.WriteString(w, `{"state":"success","html":"<form></form>","dialog":"<div class=\"modal-module-errors\"><ul><li><p>Invalid destination is required and must be valid.</p></li></ul></div>"}`)
+	}))
+	t.Cleanup(srv.Close)
+	pt, _ := newPortal(Profile{API: APIConfig{BaseURL: srv.URL}})
+	pt.login(context.Background(), "admin", "pw")
+	if _, err := pt.call(context.Background(), [][2]string{{"class", "x"}}); err == nil || !strings.Contains(err.Error(), "Invalid destination is required") {
+		t.Fatalf("a dialog is a failure: %v", err)
+	}
+	if _, err := pt.request(context.Background(), "x", "delete", "delete", "1"); err == nil {
+		t.Fatal("request applies the same dialog check")
+	}
+}
+
+const sampleForm = `<form id="f"><input name="a" value="1"><input type="checkbox" name="c1" value="y"><input type="checkbox" name="c2" value="y" checked>
+<select name="s1"><option value="o1">One</option><option value="o2" selected>Two</option></select>
+<select name="s2"><option value="p1">One</option><option value="p2">Two</option></select>
+<textarea name="t">hello</textarea><input name="d" value="no" disabled><input type="submit" name="go" value="x">
+<input name="x[{{row-count-placeholder}}][a]" value=""><input type="checkbox" name="c3"></form>`
+
+func TestFormFields(t *testing.T) {
+	got, err := formFields(sampleForm, "f")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := [][2]string{{"a", "1"}, {"c2", "y"}, {"s1", "o2"}, {"s2", "p1"}, {"t", "hello"}, {"x[{{row-count-placeholder}}][a]", ""}}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("got %v want %v", got, want)
+	}
+	if _, err := formFields(sampleForm, "nope"); err == nil {
+		t.Fatal("a missing form is an error")
+	}
+}
+
+func lastCall(t *testing.T, calls *[][][2]string) [][2]string {
+	if len(*calls) == 0 {
+		t.Fatal("the portal got no request")
+	}
+	return (*calls)[len(*calls)-1]
+}
+
+func wantFields(t *testing.T, got, want [][2]string) {
+	t.Helper()
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("fields differ\n got %v\nwant %v", got, want)
+	}
+}
+
+func TestPortalCreateCallbackApp(t *testing.T) {
+	srv, calls := recPortal(t, "success")
+	cp := openFake(t, srv)
+	if err := cp.createCallbackApp(context.Background(), "797"); err != nil {
+		t.Fatal(err)
+	}
+	wantFields(t, lastCall(t, calls), [][2]string{{"extension", "797"}, {"description", "Callback"}, {"status", "yes"}, {"direct", "yes"},
+		{"mod_dest", "25"}, {"destination_index", ""}, {"custom_destination", "create_callback,s,1"},
+		{"mod_dest_return", "24"}, {"return_destination_index", "1"}, {"custom_category", "25"},
+		{"class", "custom_app"}, {"method", "put"}, {"mode", "add"}, {"baseurl", srv.URL}})
+}
+
+func TestPortalCreateCallbackIVR(t *testing.T) {
+	srv, calls := recPortal(t, "success")
+	cp := openFake(t, srv)
+	if err := cp.createCallbackIVR(context.Background(), "9", CallbackApp{ID: 42}); err != nil {
+		t.Fatal(err)
+	}
+	wantFields(t, lastCall(t, calls), [][2]string{{"description", "Callback"}, {"class_of_service_id", ""}, {"ivr_current_cos", ""},
+		{"invalid_tries", "3"}, {"welcome_msg_id", ""}, {"instructions_msg_id", ""}, {"invalid_retry_msg_id", ""}, {"invalid_msg_id", ""},
+		{"response_timeout", "10"}, {"digit_timeout", "2"}, {"timeout_tries", "3"}, {"timeout_retry_msg_id", ""}, {"timeout_msg_id", ""},
+		{"timeout_add_msg", "yes"}, {"invalid_add_msg", "yes"}, {"mod_invalid", "24"}, {"invalid_index", "1"}, {"mod_timeout", "24"}, {"timeout_index", "1"},
+		{"entries[{{row-count-placeholder}}][option]", ""}, {"entries[{{row-count-placeholder}}][mod_dest]", ""},
+		{"entries[{{row-count-placeholder}}][dest]", ""}, {"entries[{{row-count-placeholder}}][enabled]", "1"},
+		{"entries[0][option]", "9"}, {"entries[0][mod_dest]", "4"}, {"entries[0][dest]", "42"}, {"entries[0][enabled]", "1"},
+		{"class", "ivr"}, {"method", "put"}, {"mode", "add"}, {"baseurl", srv.URL}})
+}
+
+func TestPortalCreatePriority(t *testing.T) {
+	srv, calls := recPortal(t, "success")
+	cp := openFake(t, srv)
+	if err := cp.createPriority(context.Background(), CallbackQueue{ID: 5, Extension: "7510"}, 10); err != nil {
+		t.Fatal(err)
+	}
+	wantFields(t, lastCall(t, calls), [][2]string{{"description", "Callback 7510"}, {"priority", "10"}, {"mod_dest", "10"}, {"destination_index", "5"},
+		{"class", "queues_priority"}, {"method", "put"}, {"mode", "add"}, {"baseurl", srv.URL}})
+}
+
+func TestPortalCreatePrioApp(t *testing.T) {
+	srv, calls := recPortal(t, "success")
+	cp := openFake(t, srv)
+	if err := cp.createPrioApp(context.Background(), "796", CallbackQueue{ID: 5, Extension: "7510"}, CallbackPriority{ID: 8}); err != nil {
+		t.Fatal(err)
+	}
+	wantFields(t, lastCall(t, calls), [][2]string{{"extension", "796"}, {"description", "Callback 7510"}, {"status", "yes"}, {"direct", "yes"},
+		{"mod_dest", "11"}, {"destination_index", "8"}, {"custom_destination", ""},
+		{"mod_dest_return", "24"}, {"return_destination_index", "1"}, {"custom_category", "25"},
+		{"class", "custom_app"}, {"method", "put"}, {"mode", "add"}, {"baseurl", srv.URL}})
+}
+
+const queueForm = `<form id="queues_form"><input name="tab-content" value="5"><input name="extension" value="7510">
+<select name="strategy"><option value="ringall">r</option><option value="rrmemory" selected>m</option></select>
+<select name="ivr_id"><option value="" selected>none</option><option value="11">Callback</option></select>
+<input type="checkbox" name="autofill" value="1" checked>
+<input name="advanced_name[]" value="joinempty"><input name="advanced_value[]" value="no">
+<input name="advanced_name[]" value="membergosub"><input name="advanced_value[]" value="old">
+<input name="tab-content" value="5"></form>`
+
+func TestPortalAttachQueueKeepsForm(t *testing.T) {
+	srv, calls := recPortalHTML(t, "success", queueForm)
+	cp := openFake(t, srv)
+	q := CallbackQueue{ID: 5, Extension: "7510"}
+	if err := cp.setQueue(context.Background(), q, 11, "check_position"); err != nil {
+		t.Fatal(err)
+	}
+	wantFields(t, (*calls)[0], [][2]string{{"class", "queues"}, {"method", "getContent"}, {"mode", "edit"}, {"data", "5"}, {"baseurl", srv.URL}})
+	wantFields(t, (*calls)[1], [][2]string{{"tab-content", "5"}, {"extension", "7510"}, {"strategy", "rrmemory"}, {"ivr_id", "11"}, {"autofill", "1"},
+		{"advanced_name[]", "joinempty"}, {"advanced_value[]", "no"}, {"advanced_name[]", "membergosub"}, {"advanced_value[]", "check_position"},
+		{"tab-content", "5"}, {"queue_id", "5"}, {"class", "queues"}, {"method", "put"}, {"mode", "edit"}, {"baseurl", srv.URL}})
+	// detach: IVR cleared, membergosub row removed, everything else unchanged
+	if err := cp.setQueue(context.Background(), q, 0, ""); err != nil {
+		t.Fatal(err)
+	}
+	wantFields(t, lastCall(t, calls), [][2]string{{"tab-content", "5"}, {"extension", "7510"}, {"strategy", "rrmemory"}, {"ivr_id", ""}, {"autofill", "1"},
+		{"advanced_name[]", "joinempty"}, {"advanced_value[]", "no"},
+		{"tab-content", "5"}, {"queue_id", "5"}, {"class", "queues"}, {"method", "put"}, {"mode", "edit"}, {"baseurl", srv.URL}})
+}
+
+func TestPortalAttachQueueAddsGosubAfterExisting(t *testing.T) {
+	form := `<form id="queues_form"><input name="advanced_name[]" value="joinempty"><input name="advanced_value[]" value="no"><input name="queue_id" value="5"></form>`
+	srv, calls := recPortalHTML(t, "success", form)
+	cp := openFake(t, srv)
+	if err := cp.setQueue(context.Background(), CallbackQueue{ID: 5}, 11, "check_position"); err != nil {
+		t.Fatal(err)
+	}
+	wantFields(t, lastCall(t, calls), [][2]string{{"advanced_name[]", "joinempty"}, {"advanced_value[]", "no"},
+		{"advanced_name[]", "membergosub"}, {"advanced_value[]", "check_position"}, {"queue_id", "5"},
+		{"ivr_id", "11"}, {"class", "queues"}, {"method", "put"}, {"mode", "edit"}, {"baseurl", srv.URL}})
+}
+
+func TestPortalDeletes(t *testing.T) {
+	srv, calls := recPortal(t, "success")
+	cp := openFake(t, srv)
+	ctx := context.Background()
+	for _, c := range []struct {
+		do    func(context.Context, int) error
+		class string
+	}{{cp.deleteApp, "custom_app"}, {cp.deleteIVR, "ivr"}, {cp.deletePriority, "queues_priority"}} {
+		if err := c.do(ctx, 7); err != nil {
+			t.Fatal(err)
+		}
+		wantFields(t, lastCall(t, calls), [][2]string{{"class", c.class}, {"method", "delete"}, {"mode", "delete"}, {"data", "7"}, {"baseurl", srv.URL}})
 	}
 }

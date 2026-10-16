@@ -1,12 +1,15 @@
 package pbx
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"regexp"
 	"strings"
 )
 
@@ -21,6 +24,8 @@ type portal struct {
 
 type portalReply struct {
 	State        string `json:"state"`
+	HTML         string `json:"html"`   // a getContent or put answer carries the form
+	Dialog       string `json:"dialog"` // a refused save answers state success plus a modal listing the errors
 	Notification struct {
 		Text string `json:"text"`
 	} `json:"notification"`
@@ -143,6 +148,65 @@ func PortalApplyChanges(ctx context.Context, p Profile, password string) (string
 		return "cambios aplicados en la PBX", nil
 	}
 	return r.Notification.Text, nil
+}
+
+var htmlTag = regexp.MustCompile(`<[^>]*>`)
+
+// checkReply turns a refused module request into an error: a dialog (even with state "success") or any
+// state but "success", carrying the portal's own text.
+func checkReply(r portalReply) error {
+	if r.Dialog != "" {
+		return fmt.Errorf("el portal rechazó el cambio: %s", strings.Join(strings.Fields(htmlTag.ReplaceAllString(r.Dialog, " ")), " "))
+	}
+	if r.State != "success" {
+		reason := r.Notification.Text
+		if reason == "" {
+			reason = r.State
+		}
+		return fmt.Errorf("el portal rechazó el cambio: %s", reason)
+	}
+	return nil
+}
+
+// call posts one module request (class + method …) to the root URL as multipart, the way the browser
+// submits the portal's forms; fields keep their order and baseurl goes last.
+func (pt *portal) call(ctx context.Context, fields [][2]string) (portalReply, error) {
+	var body bytes.Buffer
+	w := multipart.NewWriter(&body)
+	for _, f := range append(fields[:len(fields):len(fields)], [2]string{"baseurl", pt.base}) {
+		if err := w.WriteField(f[0], f[1]); err != nil {
+			return portalReply{}, err
+		}
+	}
+	if err := w.Close(); err != nil {
+		return portalReply{}, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, pt.base+"/", &body)
+	if err != nil {
+		return portalReply{}, err
+	}
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	r, err := pt.ajax(req)
+	if err != nil {
+		return r, err
+	}
+	return r, checkReply(r)
+}
+
+// request is the portal's pbx_request(class, method, mode, data): a urlencoded POST / used to load an
+// edit form (getContent/edit/<id>) and to delete (delete/delete/<id>).
+func (pt *portal) request(ctx context.Context, class, method, mode, data string) (portalReply, error) {
+	form := url.Values{"class": {class}, "method": {method}, "mode": {mode}, "data": {data}, "baseurl": {pt.base}}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, pt.base+"/", strings.NewReader(form.Encode()))
+	if err != nil {
+		return portalReply{}, err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	r, err := pt.ajax(req)
+	if err != nil {
+		return r, err
+	}
+	return r, checkReply(r)
 }
 
 func hasCookie(jar http.CookieJar, u *url.URL, name string) bool {
