@@ -183,7 +183,11 @@ The portal API works the same as the F-01 firewall notes (`docs/reference/CPBX5_
 - new objects take `#<unix-ms>` IDs
 - forms are full replaces, so they are always read first
 
-The exact class, method and fields for `custom_app`, `ivr`, `queues_priority` and `queues` (and their delete calls) are **recorded in plan step 1** and written into this section before any code uses them.
+Recorded on IGSS CC in plan step 1. The full field lists are in the plan's "Portal contract" section. Facts that change the design:
+- Saves are multipart `POST /` with `class`, `method=put`, `mode=add|edit`. Edit forms load and deletes run through the portal's own `pbx_request` (urlencoded `class`, `method`, `mode`, `data`).
+- **A failed save still answers `state: "success"`, with a `dialog` key** (an error modal) instead of `notification`. F-03 treats any `dialog` as a failure and shows its text.
+- The IVR needs invalid and timeout destinations, and custom apps need a return destination. F-03 uses Terminate Call → Hangup for all of them. A queue breakout never reaches the IVR's invalid or timeout destinations.
+- The queue edit is read-modify-write. F-03 loads the portal's edit form, sends every field back exactly as the browser would, and changes only `ivr_id` and the `membergosub` CUSTOM pair.
 
 ## 9. Plan step 1: hand-made setup on the test box (writes, agreed with the user)
 
