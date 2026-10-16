@@ -96,7 +96,7 @@ exten => s,1,NoOp(Callback request for queue ${QUEUE_NUMBER})
  same => n,System(printf 'Channel: Local/«prefijo»${num}@cos-all\nWaitTime: «ring»\nExtension: s\nContext: callback_out\nMaxRetries: «retries»\nRetryTime: «retry»\nSetvar: CHANNEL(language)=${CHANNEL(language)}\nSetvar: __QUEUE_NUMBER=${QUEUE_NUMBER}\nSetvar: __ORIGINAL_INTERNAL_CID="«nombre»" <${num}>\n' > ${ASTSPOOLDIR}/${id}.call)
  same => n,Set(FILE(/var/log/cpbx/callback.log,,,al)=${STRFTIME(${EPOCH},,%F %T)},${id},${QUEUE_NUMBER},${num})
  same => n,Playback(«grabación»)                   ; only when a recording is chosen
- same => n(done),Hangup()
+ same => n(done),Return()
 
 [check_position]
 exten => s,1,NoOp(Check position for queue ${QUEUE_NUMBER})
@@ -123,7 +123,7 @@ exten => s,1,NoOp(Callback answered, back to queue ${QUEUE_NUMBER})
 Why each change from the article:
 - **Digits-only check.** The caller's number ends up in a shell command (`System`), and a trunk caller ID is outside our control. Hidden or blank numbers cannot be called back, so they just hang up.
 - **Straight quotes, `printf`.** The article's `”` quotes break the shell. `printf` reads `\n` the same way in dash and bash.
-- **`Hangup()` instead of `Return()`.** The IVR entry reaches `create_callback` through a `Gosub`, so the article's `Return()` does work: it goes back to the entry, which then ends. `Hangup()` ends the call explicitly, right after the optional confirmation, and does not depend on how the portal renders the entry.
+- **`Return()` kept from the article.** The portal runs the context with `Gosub(create_callback,s,1)` and then its own `Gosub(app-termination,hangup,1)` cleanup (confirmed on the test box), and its form says to end a custom context with `Return()`. The optional confirmation plays right before it.
 - **Confirmation playback.** Optional. Without it, the call just ends, as in the article.
 - **Prefix and route check.** The callback dials the caller ID exactly as the trunk delivered it. If the outbound routes expect something else, every callback would fail silently.
 - **`%T` instead of `%r`.** 24-hour time in the log.

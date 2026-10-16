@@ -30,7 +30,7 @@ func TestCallbackDialplanOptions(t *testing.T) {
 		"Channel: Local/9${num}@cos-all",
 		"WaitTime: 45",
 		`__ORIGINAL_INTERNAL_CID="Devolucion" <${num}>`,
-		" same => n,Playback(" + play + ")\n same => n(done),Hangup()",
+		" same => n,Playback(" + play + ")\n same => n(done),Return()",
 		`GotoIf($["${QUEUE_NUMBER}"="7510"]?cos-all,797,1)` + "\n" + ` same => n,GotoIf($["${QUEUE_NUMBER}"="75102"]?cos-all,796,1)`,
 	} {
 		if !strings.Contains(got, s) {
