@@ -30,6 +30,13 @@ Out of scope until asked: recording audio (the "presione 0" prompt goes in the q
 | Rendered queue dialplan | `[ext-queues]` sets `__QUEUE_NUMBER=<n>` and calls `Queue(Q<n>,b(...),,,30,,,)`; `queues__50-1-main.conf` holds `[Q<n>]` |
 | Paths | `/var/log/cpbx` is `root:root 755` (the log needs owner `asterisk`); `/var/spool/asterisk/outgoing` is `asterisk:asterisk` |
 | Portal Apply | `ombutel` setting `reload` = `no` (nothing outstanding on the day) |
+| Destination categories | `ombu_destination_categories(category_id, module_id, name UNIQUE)`: `custom_application`=4, `queue`=10, `queue_priority`=11, `ivr`=15, `custom`=25 (resolved by **name** at runtime, never by id) |
+| Recordings | `ombu_recordings(recording_id, name UNIQUE, …)`; the IVRs play them as `/var/lib/ombutel/static/<dir>/recordings/<md5(recording_id)>` (no extension), and there is exactly one `<dir>` |
+| IVR entries | each entry runs `Gosub(<destination>)`, then the extension ends |
+| `applications` context | `app-custom-application` and `app-queues-priority` are commented out while none exist; the portal turns them on when it renders the first one |
+| Routing from `cos-all` | `cos-all-init` matches **every** number (`_[-+*#0-9a-zA-Z].`) and sets `__ARS=ARS-all`; the real outbound match is in `ARS-all` → `trk-group-1` (`_X.`) |
+| AstDB | the `<instance>/callback/` family is unused (the only keys containing "callback" are the portal's `return_callback_prefix` and `transfer_callback`) |
+| Asterisk user | `asterisk` (groups `asterisk`, `ombutel`) |
 
 ## 3. Detection
 
@@ -66,7 +73,7 @@ F-03 recognizes its own objects by content, never by a local record:
    - the callback app and the IVR
    - per queue: its Queue Priority, its priority app, and IVR + `membergosub`
 
-   Pieces already in place read "ya instalado: se omite". The **route check** runs `dialplan show <prefijo><número de prueba>@cos-all`. If no outbound route matches, Aplicar is blocked: "Ninguna ruta de salida acepta <número>".
+   Pieces already in place read "ya instalado: se omite". The **route check** runs `dialplan show <prefijo><número de prueba>@ARS-all`; it passes only when the match is in a `trk-group-*` context. `@cos-all` is useless for this, because its catch-all matches every number. If no outbound route matches, Aplicar is blocked: "Ninguna ruta de salida acepta <número>". The test call in section 11 is the final proof.
 5. **Aplicar.** Issues a folio, runs section 6 in order, then stamps each line APLICADO, OMITIDO or FALLÓ from the read-back, not from the request.
 6. **Quitar.** The same preview → confirm → read-back flow, in the order of section 7.
 7. **Aplicar cambios en la PBX.** The portal Apply, two-step, the same as F-02.
@@ -116,7 +123,7 @@ exten => s,1,NoOp(Callback answered, back to queue ${QUEUE_NUMBER})
 Why each change from the article:
 - **Digits-only check.** The caller's number ends up in a shell command (`System`), and a trunk caller ID is outside our control. Hidden or blank numbers cannot be called back, so they just hang up.
 - **Straight quotes, `printf`.** The article's `”` quotes break the shell. `printf` reads `\n` the same way in dash and bash.
-- **`Hangup()` instead of `Return()`.** The IVR reaches `create_callback` through a `Goto`, so `Return()` ends the call with "Return without Gosub".
+- **`Hangup()` instead of `Return()`.** The IVR entry reaches `create_callback` through a `Gosub`, so the article's `Return()` does work: it goes back to the entry, which then ends. `Hangup()` ends the call explicitly, right after the optional confirmation, and does not depend on how the portal renders the entry.
 - **Confirmation playback.** Optional. Without it, the call just ends, as in the article.
 - **Prefix and route check.** The callback dials the caller ID exactly as the trunk delivered it. If the outbound routes expect something else, every callback would fail silently.
 - **`%T` instead of `%r`.** 24-hour time in the log.
@@ -150,7 +157,7 @@ The order is built so the step that touches live calls comes last:
    2. the priority app `Callback <N>` → that priority
    3. **the queue:** IVR = callback IVR and `membergosub` = `check_position`
 
-   The file is regenerated with this queue's line in `callback_out` before step iii. The queue form is **read-modify-write**: F-03 loads the portal's current form for that queue, changes only the IVR field and the `membergosub` row, and posts everything else back as it was. Before vs after, every `ombu_queues` column (except `ivr_id`) and every other `ombu_queue_params` row must be identical. Any difference = FALLÓ, in red.
+   The priority app codes are chosen in the preview, so the file written in step 1 already holds every selected queue's `callback_out` line. A line is harmless until its queue is attached in step iii. The queue form is **read-modify-write**: F-03 loads the portal's current form for that queue, changes only the IVR field and the `membergosub` row, and posts everything else back as it was. Before vs after, every `ombu_queues` column (except `ivr_id`) and every other `ombu_queue_params` row must be identical. Any difference = FALLÓ, in red.
 5. **Read-back** of every piece from MySQL and Asterisk (`queue show Q<N>` and the rendered `queues__50-1-main.conf` after the portal Apply).
 
 If a step fails, F-03 stops and stamps the rest "no se ejecutó". Nothing is rolled back automatically: Estado shows each piece, a second Aplicar continues where the first stopped, and Quitar cleans up. Timeouts: reads 60 s; Aplicar 5 min.
@@ -192,12 +199,11 @@ Only on IGSS CC, and only with **new** objects that are easy to delete. Queues 7
    - custom app **797 "PRUEBA Callback 7599"**
 
    The dialplan file from section 5 goes in by hand. Then the portal Apply.
-3. Settle the open facts:
+3. Settle the open facts (the routing, recording and AstDB facts are already settled in section 2):
    - the request shape of each form and of its delete
    - the queue IVR renders as `context=` in `[Q7599]`
    - `membergosub` renders in `[Q7599]`
-   - `cos-all` reaches `7599` and `797`
-   - the name `Playback()` needs for a portal recording
+   - `cos-all` reaches `7599` and `797` once the portal renders them
    - the `.call` file's `Setvar: CHANNEL(language)` works
    - the format in which the trunk delivers caller IDs, and the prefix the routes need
 4. Test calls on 7599 (section 11), then delete everything from step 2 and compare against the snapshot.
