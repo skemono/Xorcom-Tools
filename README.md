@@ -1,7 +1,7 @@
 # Utilidades XORCOM
 
 Herramientas de escritorio (Windows) para automatizar la configuración de Xorcom CompletePBX 5.
-Cada herramienta es un formulario del talonario: F-01 Conexiones, F-02 …
+Cada herramienta es un formulario del talonario: F-01 Conexiones, F-02 PINes masivos, F-03 Devolución de llamada (solo PBX con Call Center).
 
 ## Desarrollo
 
