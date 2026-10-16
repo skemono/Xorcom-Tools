@@ -5,13 +5,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"mime"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -665,12 +665,12 @@ func TestPortalCallDialogIsFailure(t *testing.T) {
 			io.WriteString(w, `{"state":"success"}`)
 			return
 		}
-		io.WriteString(w, `{"state":"success","html":"<form></form>","dialog":"<div class=\"modal-module-errors\"><ul><li><p>Invalid destination is required and must be valid.</p></li></ul></div>"}`)
+		io.WriteString(w, `{"state":"success","html":"<form></form>","dialog":"<div class=\"modal-module-errors\"><ul><li><p>Invalid destination is required and must be valid.</p><p>Opci&oacute;n no v&aacute;lida</p></li></ul></div>"}`)
 	}))
 	t.Cleanup(srv.Close)
 	pt, _ := newPortal(Profile{API: APIConfig{BaseURL: srv.URL}})
 	pt.login(context.Background(), "admin", "pw")
-	if _, err := pt.call(context.Background(), [][2]string{{"class", "x"}}); err == nil || !strings.Contains(err.Error(), "Invalid destination is required") {
+	if _, err := pt.call(context.Background(), [][2]string{{"class", "x"}}); err == nil || !strings.Contains(err.Error(), "Invalid destination is required") || !strings.Contains(err.Error(), "Opción no válida") {
 		t.Fatalf("a dialog is a failure: %v", err)
 	}
 	if _, err := pt.request(context.Background(), "x", "delete", "delete", "1"); err == nil {
@@ -682,15 +682,21 @@ const sampleForm = `<form id="f"><input name="a" value="1"><input type="checkbox
 <select name="s1"><option value="o1">One</option><option value="o2" selected>Two</option></select>
 <select name="s2"><option value="p1">One</option><option value="p2">Two</option></select>
 <textarea name="t">hello</textarea><input name="d" value="no" disabled><input type="submit" name="go" value="x">
-<input name="x[{{row-count-placeholder}}][a]" value=""><input type="checkbox" name="c3"></form>`
+<input name="x[{{row-count-placeholder}}][a]" value=""><input type="checkbox" name="c3"><input type="checkbox" name="c4" checked>
+<select name="m[]" multiple><option value="1" selected>1</option><option value="2">2</option><option value="3" selected>3</option></select>
+<select name="m0[]" multiple><option value="1">1</option></select>
+<select name="last"><option value="1" selected>1</option><option value="2" selected>2</option></select>
+<select name="dis"><option value="1" disabled>1</option><option value="2">2</option></select>
+<select name="alldis"><option value="1" disabled>1</option></select></form>`
 
 func TestFormFields(t *testing.T) {
 	got, err := formFields(sampleForm, "f")
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := [][2]string{{"a", "1"}, {"c2", "y"}, {"s1", "o2"}, {"s2", "p1"}, {"t", "hello"}, {"x[{{row-count-placeholder}}][a]", ""}}
-	if fmt.Sprint(got) != fmt.Sprint(want) {
+	want := [][2]string{{"a", "1"}, {"c2", "y"}, {"s1", "o2"}, {"s2", "p1"}, {"t", "hello"}, {"x[{{row-count-placeholder}}][a]", ""}, {"c4", "on"},
+		{"m[]", "1"}, {"m[]", "3"}, {"last", "2"}, {"dis", "2"}}
+	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %v want %v", got, want)
 	}
 	if _, err := formFields(sampleForm, "nope"); err == nil {
@@ -707,7 +713,7 @@ func lastCall(t *testing.T, calls *[][][2]string) [][2]string {
 
 func wantFields(t *testing.T, got, want [][2]string) {
 	t.Helper()
-	if fmt.Sprint(got) != fmt.Sprint(want) {
+	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("fields differ\n got %v\nwant %v", got, want)
 	}
 }
@@ -762,12 +768,13 @@ func TestPortalCreatePrioApp(t *testing.T) {
 		{"class", "custom_app"}, {"method", "put"}, {"mode", "add"}, {"baseurl", srv.URL}})
 }
 
-const queueForm = `<form id="queues_form"><input name="tab-content" value="5"><input name="extension" value="7510">
+const queueForm = `<form id="queues_form"><input type="hidden" name="class" value="queues"><input type="hidden" name="method" value="put"><input type="hidden" name="mode" value="edit">
+<input name="tab-content" value="5"><input name="extension" value="7510">
 <select name="strategy"><option value="ringall">r</option><option value="rrmemory" selected>m</option></select>
 <select name="ivr_id"><option value="" selected>none</option><option value="11">Callback</option></select>
 <input type="checkbox" name="autofill" value="1" checked>
 <input name="advanced_name[]" value="joinempty"><input name="advanced_value[]" value="no">
-<input name="advanced_name[]" value="membergosub"><input name="advanced_value[]" value="old">
+<input name="advanced_name[]" value="membergosub"><input name="advanced_value[]" value="check_position">
 <input name="tab-content" value="5"></form>`
 
 func TestPortalAttachQueueKeepsForm(t *testing.T) {
@@ -778,28 +785,76 @@ func TestPortalAttachQueueKeepsForm(t *testing.T) {
 		t.Fatal(err)
 	}
 	wantFields(t, (*calls)[0], [][2]string{{"class", "queues"}, {"method", "getContent"}, {"mode", "edit"}, {"data", "5"}, {"baseurl", srv.URL}})
-	wantFields(t, (*calls)[1], [][2]string{{"tab-content", "5"}, {"extension", "7510"}, {"strategy", "rrmemory"}, {"ivr_id", "11"}, {"autofill", "1"},
+	wantFields(t, (*calls)[1], [][2]string{{"class", "queues"}, {"method", "put"}, {"mode", "edit"},
+		{"tab-content", "5"}, {"extension", "7510"}, {"strategy", "rrmemory"}, {"ivr_id", "11"}, {"autofill", "1"},
 		{"advanced_name[]", "joinempty"}, {"advanced_value[]", "no"}, {"advanced_name[]", "membergosub"}, {"advanced_value[]", "check_position"},
-		{"tab-content", "5"}, {"queue_id", "5"}, {"class", "queues"}, {"method", "put"}, {"mode", "edit"}, {"baseurl", srv.URL}})
+		{"tab-content", "5"}, {"queue_id", "5"}, {"baseurl", srv.URL}})
 	// detach: IVR cleared, membergosub row removed, everything else unchanged
 	if err := cp.setQueue(context.Background(), q, 0, ""); err != nil {
 		t.Fatal(err)
 	}
-	wantFields(t, lastCall(t, calls), [][2]string{{"tab-content", "5"}, {"extension", "7510"}, {"strategy", "rrmemory"}, {"ivr_id", ""}, {"autofill", "1"},
+	wantFields(t, lastCall(t, calls), [][2]string{{"class", "queues"}, {"method", "put"}, {"mode", "edit"},
+		{"tab-content", "5"}, {"extension", "7510"}, {"strategy", "rrmemory"}, {"ivr_id", ""}, {"autofill", "1"},
 		{"advanced_name[]", "joinempty"}, {"advanced_value[]", "no"},
-		{"tab-content", "5"}, {"queue_id", "5"}, {"class", "queues"}, {"method", "put"}, {"mode", "edit"}, {"baseurl", srv.URL}})
+		{"tab-content", "5"}, {"queue_id", "5"}, {"baseurl", srv.URL}})
 }
 
 func TestPortalAttachQueueAddsGosubAfterExisting(t *testing.T) {
-	form := `<form id="queues_form"><input name="advanced_name[]" value="joinempty"><input name="advanced_value[]" value="no"><input name="queue_id" value="5"></form>`
+	form := `<form id="queues_form"><input name="extension" value="7510"><select name="ivr_id"><option value="">-</option></select><input name="advanced_name[]" value="joinempty"><input name="advanced_value[]" value="no"><input name="queue_id" value="5"></form>`
 	srv, calls := recPortalHTML(t, "success", form)
 	cp := openFake(t, srv)
-	if err := cp.setQueue(context.Background(), CallbackQueue{ID: 5}, 11, "check_position"); err != nil {
+	if err := cp.setQueue(context.Background(), CallbackQueue{ID: 5, Extension: "7510"}, 11, "check_position"); err != nil {
 		t.Fatal(err)
 	}
-	wantFields(t, lastCall(t, calls), [][2]string{{"advanced_name[]", "joinempty"}, {"advanced_value[]", "no"},
+	wantFields(t, lastCall(t, calls), [][2]string{{"extension", "7510"}, {"ivr_id", "11"}, {"advanced_name[]", "joinempty"}, {"advanced_value[]", "no"},
 		{"advanced_name[]", "membergosub"}, {"advanced_value[]", "check_position"}, {"queue_id", "5"},
-		{"ivr_id", "11"}, {"class", "queues"}, {"method", "put"}, {"mode", "edit"}, {"baseurl", srv.URL}})
+		{"class", "queues"}, {"method", "put"}, {"mode", "edit"}, {"baseurl", srv.URL}})
+}
+
+func TestPortalSetQueueRefusesForeignForm(t *testing.T) {
+	for name, form := range map[string]string{
+		"other extension": `<form id="queues_form"><input name="extension" value="9999"><input name="ivr_id" value=""></form>`,
+		"no ivr_id":       `<form id="queues_form"><input name="extension" value="7510"></form>`,
+		"other queue_id":  `<form id="queues_form"><input name="extension" value="7510"><input name="ivr_id" value=""><input name="queue_id" value="6"></form>`,
+	} {
+		srv, calls := recPortalHTML(t, "success", form)
+		cp := openFake(t, srv)
+		err := cp.setQueue(context.Background(), CallbackQueue{ID: 5, Extension: "7510"}, 11, "check_position")
+		if err == nil || !strings.Contains(err.Error(), "no corresponde a la cola 7510") {
+			t.Fatalf("%s: want a refusal, got %v", name, err)
+		}
+		if len(*calls) != 1 {
+			t.Fatalf("%s: only the getContent may be sent, got %d requests", name, len(*calls))
+		}
+	}
+}
+
+func TestSetGosubKeepsForeign(t *testing.T) {
+	f := [][2]string{{"advanced_name[]", "membergosub"}, {"advanced_value[]", "other_sub"}}
+	wantFields(t, setGosub(f, ""), [][2]string{{"advanced_name[]", "membergosub"}, {"advanced_value[]", "other_sub"}})
+	f = [][2]string{{"advanced_name[]", "membergosub"}, {"advanced_value[]", "check_position"}}
+	if got := setGosub(f, ""); len(got) != 0 {
+		t.Fatalf("F-03's own row is removed: %v", got)
+	}
+}
+
+func TestDetachIVR(t *testing.T) {
+	st := CallbackState{
+		Apps: []CallbackApp{{ID: 1, DestKind: "custom", Custom: callbackTarget}},
+		IVRs: []CallbackIVR{{ID: 11, Entries: []CallbackIVREntry{{Option: "9", DestKind: "custom_application", DestIndex: 1}}}},
+	}
+	if got := detachIVR(st, CallbackQueue{IVRID: 30}); got != 30 {
+		t.Fatalf("foreign IVR is kept: %d", got)
+	}
+	if got := detachIVR(st, CallbackQueue{IVRID: 11}); got != 0 {
+		t.Fatalf("callback IVR goes: %d", got)
+	}
+	if got := detachIVR(st, CallbackQueue{}); got != 0 {
+		t.Fatalf("no IVR: %d", got)
+	}
+	if got := detachIVR(CallbackState{}, CallbackQueue{IVRID: 30}); got != 30 {
+		t.Fatalf("no callback IVR at all: foreign kept: %d", got)
+	}
 }
 
 func TestPortalDeletes(t *testing.T) {

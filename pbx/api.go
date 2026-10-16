@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html"
 	"mime/multipart"
 	"net/http"
 	"net/http/cookiejar"
@@ -156,7 +157,7 @@ var htmlTag = regexp.MustCompile(`<[^>]*>`)
 // state but "success", carrying the portal's own text.
 func checkReply(r portalReply) error {
 	if r.Dialog != "" {
-		return fmt.Errorf("el portal rechazó el cambio: %s", strings.Join(strings.Fields(htmlTag.ReplaceAllString(r.Dialog, " ")), " "))
+		return fmt.Errorf("el portal rechazó el cambio: %s", strings.Join(strings.Fields(html.UnescapeString(htmlTag.ReplaceAllString(r.Dialog, " "))), " "))
 	}
 	if r.State != "success" {
 		reason := r.Notification.Text

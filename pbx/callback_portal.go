@@ -93,17 +93,22 @@ func (cp *CallbackPortal) guardQueue(ctx context.Context, q CallbackQueue, save 
 	if err != nil {
 		return err
 	}
-	if err := save(); err != nil {
-		return err
-	}
+	saveErr := save()
 	after, err := queueSnapshot(ctx, cp.p, cp.sec, q.ID)
 	if err != nil {
+		if saveErr != nil {
+			return saveErr
+		}
 		return fmt.Errorf("no se pudo verificar la cola %s después de guardar: %w", q.Extension, err)
 	}
 	if d := queueChanges(before, after); len(d) > 0 {
-		return fmt.Errorf("el portal cambió otros campos de la cola %s (revíselos en el portal): %v", q.Extension, d)
+		msg := fmt.Sprintf("el portal cambió otros campos de la cola %s (revíselos en el portal): %s", q.Extension, strings.Join(d, "; "))
+		if saveErr != nil {
+			return fmt.Errorf("%w; además, %s", saveErr, msg)
+		}
+		return errors.New(msg)
 	}
-	return nil
+	return saveErr
 }
 
 // CallbackStepRunner performs one plan step: SSH steps directly, portal steps through cp. Portal steps
@@ -131,6 +136,12 @@ func CallbackStepRunner(p Profile, sec Secrets, cp *CallbackPortal, plan Callbac
 			}
 		}
 		switch s.Kind {
+		case StepPriority, StepPrioApp, StepQueue, StepDetach, StepDelPrioApp, StepDelPriority:
+			if q == nil {
+				return fmt.Errorf("el paso «%s» necesita una cola", s.Kind)
+			}
+		}
+		switch s.Kind {
 		case StepApp:
 			return cp.createCallbackApp(ctx, s.Code)
 		case StepIVR:
@@ -154,10 +165,7 @@ func CallbackStepRunner(p Profile, sec Secrets, cp *CallbackPortal, plan Callbac
 			}
 			return cp.guardQueue(ctx, *q, func() error { return cp.setQueue(ctx, *q, iv.ID, memberGosub) })
 		case StepDetach:
-			keep := 0 // a foreign IVR stays; only membergosub goes
-			if iv := st.CallbackIVR(); q.IVRID != 0 && (iv == nil || q.IVRID != iv.ID) {
-				keep = q.IVRID
-			}
+			keep := detachIVR(st, *q)
 			return cp.guardQueue(ctx, *q, func() error { return cp.setQueue(ctx, *q, keep, "") })
 		case StepDelPrioApp:
 			if pa := st.PrioApp(st.Priority(*q)); pa != nil {
@@ -182,6 +190,14 @@ func CallbackStepRunner(p Profile, sec Secrets, cp *CallbackPortal, plan Callbac
 		}
 		return fmt.Errorf("paso desconocido «%s»", s.Kind)
 	}
+}
+
+// detachIVR is the IVR id a detach leaves on q: a foreign IVR stays (only membergosub goes), F-03's own or none -> 0.
+func detachIVR(st CallbackState, q CallbackQueue) int {
+	if iv := st.CallbackIVR(); q.IVRID != 0 && (iv == nil || q.IVRID != iv.ID) {
+		return q.IVRID
+	}
+	return 0
 }
 
 // customAppFields is the custom_app save: a destination plus the required return destination (Hangup).
@@ -234,6 +250,18 @@ func (cp *CallbackPortal) setQueue(ctx context.Context, q CallbackQueue, ivrID i
 	if err != nil {
 		return err
 	}
+	ext, qid := "", id
+	for _, kv := range f {
+		switch kv[0] {
+		case "extension":
+			ext = kv[1]
+		case "queue_id":
+			qid = kv[1]
+		}
+	}
+	if !hasField(f, "ivr_id") || ext != q.Extension || qid != id {
+		return fmt.Errorf("el formulario del portal no corresponde a la cola %s: no se guardó nada", q.Extension)
+	}
 	ivr := ""
 	if ivrID != 0 {
 		ivr = strconv.Itoa(ivrID)
@@ -243,7 +271,8 @@ func (cp *CallbackPortal) setQueue(ctx context.Context, q CallbackQueue, ivrID i
 	if !hasField(f, "queue_id") {
 		f = append(f, [2]string{"queue_id", id})
 	}
-	_, err = cp.pt.call(ctx, append(f, [2]string{"class", "queues"}, [2]string{"method", "put"}, [2]string{"mode", "edit"}))
+	f = setField(setField(setField(f, "class", "queues"), "method", "put"), "mode", "edit")
+	_, err = cp.pt.call(ctx, f)
 	return err
 }
 
@@ -287,6 +316,9 @@ func setGosub(f [][2]string, gosub string) [][2]string {
 		if gosub != "" {
 			f[vals[k]][1] = gosub
 			return f
+		}
+		if f[vals[k]][1] != memberGosub {
+			return f // a foreign membergosub is not F-03's to remove
 		}
 		vi := vals[k]
 		out := make([][2]string, 0, len(f))
@@ -367,7 +399,7 @@ func formFields(doc, formID string) ([][2]string, error) {
 					out = append(out, [2]string{name, attr(n, "value")})
 				}
 			case "select":
-				if v, ok := selectedValue(n); ok {
+				for _, v := range selectedValues(n) {
 					out = append(out, [2]string{name, v})
 				}
 				return
@@ -417,32 +449,51 @@ func nodeText(n *html.Node) string {
 	return sb.String()
 }
 
-// selectedValue is the selected option's value, or the first option's when none is selected.
-func selectedValue(sel *html.Node) (string, bool) {
-	var first, chosen *html.Node
+// selectedValues is what a browser submits for a <select>: every selected option for a multiple one;
+// for a single one the last selected option, or the first non-disabled one when none is. Disabled options never go.
+func selectedValues(sel *html.Node) []string {
+	var opts []*html.Node
 	var walk func(*html.Node)
 	walk = func(n *html.Node) {
 		if n.Type == html.ElementNode && n.Data == "option" {
-			if first == nil {
-				first = n
-			}
-			if chosen == nil && hasAttr(n, "selected") {
-				chosen = n
-			}
+			opts = append(opts, n)
 		}
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
 			walk(c)
 		}
 	}
 	walk(sel)
-	if chosen == nil {
-		chosen = first
+	val := func(o *html.Node) string {
+		if hasAttr(o, "value") {
+			return attr(o, "value")
+		}
+		return strings.Join(strings.Fields(nodeText(o)), " ")
+	}
+	var out []string
+	if hasAttr(sel, "multiple") {
+		for _, o := range opts {
+			if hasAttr(o, "selected") && !hasAttr(o, "disabled") {
+				out = append(out, val(o))
+			}
+		}
+		return out
+	}
+	var chosen *html.Node
+	for _, o := range opts {
+		if hasAttr(o, "selected") {
+			chosen = o
+		}
 	}
 	if chosen == nil {
-		return "", false
+		for _, o := range opts {
+			if !hasAttr(o, "disabled") {
+				chosen = o
+				break
+			}
+		}
 	}
-	if hasAttr(chosen, "value") {
-		return attr(chosen, "value"), true
+	if chosen == nil || hasAttr(chosen, "disabled") {
+		return nil
 	}
-	return strings.TrimSpace(nodeText(chosen)), true
+	return []string{val(chosen)}
 }
