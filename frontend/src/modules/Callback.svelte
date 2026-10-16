@@ -26,6 +26,7 @@
   let reloading = $state(false)
   let portalMsg = $state('')
   let otherPending = $state<boolean | null>(null)
+  let pendingNote = $state('')
   const idle = $derived(!app.busy && !reading)
 
   const st = $derived(view?.state)
@@ -42,8 +43,18 @@
       : !preview ? 'Genere la vista previa.' : preview.blocked > 0 ? 'Hay pasos bloqueados: quite esas colas.'
       : preview.new === 0 ? 'No hay cambios: todo ya está así.' : '',
   )
-  const fileState = $derived(!st ? '' : !st.fileExists ? 'no instalado' : view?.installed ? 'instalado' : 'distinto')
-  const lit = $derived(!st?.hasCC ? 0 : picked.length === 0 ? 3 : !preview ? 4 : !result ? 5 : mode === 'install' && result.applied > 0 && !portalMsg ? 6 : 0)
+  const fileState = $derived(!st ? '' : !st.fileExists ? 'no existe'
+    : !view?.installed ? 'distinto: editado a mano (se reemplaza al aplicar)'
+    : st.contexts === 3 ? 'instalado' : 'instalado, contextos sin cargar (se recarga al aplicar)')
+  // Estado shows what the PBX has, never the editable settings.
+  const CB_APP = 'create_callback,s,1'
+  const foundApp = $derived(st?.apps?.find((a) => a.custom === CB_APP))
+  const appState = $derived(foundApp ? `código ${foundApp.extension} «${foundApp.description}»` : 'no existe')
+  const ivrState = $derived.by(() => {
+    const ivr = foundApp && st?.ivrs?.find((i) => i.entries?.length === 1 && i.entries[0].destIndex === foundApp.id)
+    return ivr ? `«${ivr.description}» (Nº ${ivr.id}) · tecla ${ivr.entries![0].option}` : 'no existe'
+  })
+  const lit = $derived(!st?.hasCC ? 0 : picked.length === 0 ? 3 : !preview ? 4 : !result ? 5 : result.applied > 0 && !portalMsg ? 6 : 0)
   const tilts = ['-3deg', '-1.5deg', '-4.5deg']
 
   // Only the newest read may land: a PBX switch mid-read must not show the old PBX.
@@ -52,9 +63,9 @@
   async function load(manual = false) {
     const mine = ++seq
     discard()
-    view = null
     viewError = ''
     if (!app.active) {
+      view = null
       reading = ''
       return
     }
@@ -81,6 +92,7 @@
     const id = app.active
     if (id !== shownPBX) {
       shownPBX = id
+      view = null // a different PBX never shows the old one's state
       untrack(() => load())
     }
   })
@@ -106,6 +118,7 @@
 
   async function apply() {
     if (!canApply) return
+    const mine = seq
     app.busy = true
     applying = true
     done = 0
@@ -126,7 +139,10 @@
       app.busy = false
     }
     if (result) {
-      try { view = await talk(CallbackService.State()) } catch { /* the result stays; Actualizar re-reads */ }
+      try {
+        const v = await talk(CallbackService.State())
+        if (mine === seq) view = v // a PBX switch meanwhile must not land the old state
+      } catch { /* the result stays; Actualizar re-reads */ }
     }
   }
 
@@ -137,6 +153,7 @@
     portalMsg = ''
     confirmReload = false
     otherPending = null
+    pendingNote = ''
   }
 
   function toggle(q: string, on: boolean) {
@@ -154,7 +171,15 @@
   async function reloadPBX() {
     if (!confirmReload) {
       reading = 'pending'
-      try { otherPending = await talk(ProfileService.PendingPortalChanges()) } catch { otherPending = null } finally { reading = '' }
+      pendingNote = ''
+      try {
+        otherPending = await talk(ProfileService.PendingPortalChanges())
+      } catch (e) {
+        otherPending = null
+        pendingNote = `No se pudo verificar si hay otros cambios pendientes: ${errText(e)}`
+      } finally {
+        reading = ''
+      }
       confirmReload = true
       setTimeout(() => (confirmReload = false), 8000)
       return
@@ -186,6 +211,8 @@
 
   {#if viewError}
     <p class="notice"><Icon name="alert" /><span>{viewError}</span></p>
+  {:else if !app.active}
+    <p class="hint">Elija una PBX en el encabezado.</p>
   {/if}
 
   {#if st && !st.hasCC}
@@ -194,10 +221,10 @@
     <section class="step">
       <h2 class="step-head"><span class="disc">1</span>Estado{#if reading === 'state'}<span class="aside doing"><span class="spin"></span>Leyendo la PBX…</span>{/if}</h2>
       <dl class="state">
-        <dt>Archivo</dt><dd>{fileState} <span class="tag">{st.file}</span></dd>
+        <dt>Archivo</dt><dd>{fileState}</dd>
         <dt>Registro</dt><dd>{st.logOwner || 'sin dueño'}</dd>
-        <dt>Aplicación</dt><dd>{view?.installed ? `código ${cfg.appCode}` : 'no instalada'}</dd>
-        <dt>IVR</dt><dd>{st.ivrs?.length ?? 0}</dd>
+        <dt>Aplicación</dt><dd>{appState}</dd>
+        <dt>IVR</dt><dd>{ivrState}</dd>
         <dt>En espera</dt><dd>{st.waiting?.length ?? 0}</dd>
       </dl>
       <button class="btn" onclick={() => load(true)} disabled={!idle || !app.active} title="Volver a leer el estado de la PBX">
@@ -349,6 +376,8 @@
               <span class="warn"><Icon name="alert" size={18} />Hay otros cambios pendientes en el portal; también se aplicarán.</span>
             {:else if confirmReload && otherPending === false}
               <span class="tag">No hay otros cambios pendientes en el portal.</span>
+            {:else if confirmReload && pendingNote}
+              <span class="tag">{pendingNote}</span>
             {/if}
           </div>
           {#if portalMsg}<p class="portal-msg">{portalMsg}</p>{/if}
