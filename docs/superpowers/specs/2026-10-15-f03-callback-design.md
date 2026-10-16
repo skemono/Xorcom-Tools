@@ -189,6 +189,17 @@ Recorded on IGSS CC in plan step 1. The full field lists are in the plan's "Port
 - The IVR needs invalid and timeout destinations, and custom apps need a return destination. F-03 uses Terminate Call → Hangup for all of them. A queue breakout never reaches the IVR's invalid or timeout destinations.
 - The queue edit is read-modify-write. F-03 loads the portal's edit form, sends every field back exactly as the browser would, and changes only `ivr_id` and the `membergosub` CUSTOM pair.
 
+## 8b. Network prerequisites found in the live call test (2026-10-16)
+
+The callback was proven end to end on queue 7599. Callers came from V15 through the V15↔V16 trunk, and the callback went back the same way. Each item below broke a call until it was fixed. They are deployment prerequisites, not F-03 code.
+
+1. **The V15 trunk toward V16 must pass the caller's number.** "From User" set to the trunk's own user replaced every caller's number with it, so the callback would dial the trunk. Fix: From User left empty. V16 accepts V15 by IP.
+2. **The V16 trunk profile toward V15: "Send Remote Party ID" = No.** With RPID on, the connected-line re-INVITE that V16 sends when the queue rings an agent made V15 (Asterisk 18) stop sending the caller's audio. The result was one-way audio on every queue call from V15, which also lost the caller's key press. The V16 trunk's "From User" was cleared too, so V16 callers' numbers still reach V15.
+3. **V15 must route every number a callback can dial.** V16 sends the callback to V15 with the dialed number as the DID. A DID that V15 does not route falls into its catch-all route, **a production ring group** (staff phones), which ends in a busy announcement that *answers*. The callback then enters the queue with nobody on the line. A test route that carried a caller-ID filter (`CID Number` = the DID) caused exactly this. Before production, V15 needs explicit routes for callback numbers, and no CID filter on them.
+4. **The agent needs a plain SIP device.** Extension 2000's "CloudPhone Desktop" device cannot be used by a SIP softphone. Testing with several lines in one softphone also hides calls: Linphone stops the audio of the active call when another of its own lines rings.
+
+**Open product decision:** the callback treats *answered* as *the customer picked up*. Any announcement that answers (item 3, voicemail, a carrier message) would queue a dead call. A "press 1 to be connected" confirmation in `callback_out` before the queue would prevent that.
+
 ## 9. Plan step 1: hand-made setup on the test box (writes, agreed with the user)
 
 Only on IGSS CC, and only with **new** objects that are easy to delete. Queues 7510 and 75102 are never touched.
