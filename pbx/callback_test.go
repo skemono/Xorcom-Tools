@@ -594,6 +594,12 @@ func TestQueueChangesOnlyAllowsF03Fields(t *testing.T) {
 // recPortal answers the login and records each module request's fields in order (multipart saves
 // and urlencoded pbx_request calls alike). A getContent request answers editHTML as the form.
 func recPortalHTML(t *testing.T, state, editHTML string) (*httptest.Server, *[][][2]string) {
+	b, _ := json.Marshal(map[string]string{"state": state, "html": editHTML})
+	return recPortalReplies(t, string(b))
+}
+
+// recPortalReplies answers module request n with replies[n] (the last one repeats).
+func recPortalReplies(t *testing.T, replies ...string) (*httptest.Server, *[][][2]string) {
 	var calls [][][2]string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/login" {
@@ -620,8 +626,7 @@ func recPortalHTML(t *testing.T, state, editHTML string) (*httptest.Server, *[][
 			}
 		}
 		calls = append(calls, fields)
-		b, _ := json.Marshal(map[string]string{"state": state, "html": editHTML})
-		w.Write(b)
+		io.WriteString(w, replies[min(len(calls), len(replies))-1])
 	}))
 	t.Cleanup(srv.Close)
 	return srv, &calls
@@ -881,6 +886,47 @@ func TestPortalDeletes(t *testing.T) {
 			t.Fatal(err)
 		}
 		wantFields(t, lastCall(t, calls), [][2]string{{"class", c.class}, {"method", "delete"}, {"mode", "delete"}, {"data", "7"}, {"baseurl", srv.URL}})
+	}
+}
+
+func deleteModal(t *testing.T, id string) string {
+	h := `<div id="modal-module-delete"><form method="POST" action="/" id="modal-form-delete"><p>Are you sure?</p>` +
+		`<input type="hidden" value="7" name="custom_application_id" id="custom_application_id">` +
+		`<input type="hidden" value="custom_app" name="class"><input type="hidden" value="delete" name="method">` +
+		`<input type="hidden" value="deleteConfirmed" name="mode"><input type="hidden" value="` + id + `" name="data">` +
+		`<button type="button">Cancel</button><button type="submit">Delete</button></form></div>`
+	b, _ := json.Marshal(map[string]string{"state": "success", "dialog": "modal-module-delete", "html": h})
+	return string(b)
+}
+
+func TestPortalDeleteConfirms(t *testing.T) {
+	srv, calls := recPortalReplies(t, deleteModal(t, "7"), `{"state":"success","notification":{"text":"The data has been removed"}}`)
+	cp := openFake(t, srv)
+	if err := cp.deleteApp(context.Background(), 7); err != nil {
+		t.Fatal(err)
+	}
+	if len(*calls) != 2 {
+		t.Fatalf("want 2 requests, got %d", len(*calls))
+	}
+	wantFields(t, (*calls)[0], [][2]string{{"class", "custom_app"}, {"method", "delete"}, {"mode", "delete"}, {"data", "7"}, {"baseurl", srv.URL}})
+	wantFields(t, (*calls)[1], [][2]string{{"custom_application_id", "7"}, {"class", "custom_app"}, {"method", "delete"},
+		{"mode", "deleteConfirmed"}, {"data", "7"}, {"baseurl", srv.URL}})
+}
+
+func TestPortalDeleteRefusesUnexpectedConfirm(t *testing.T) {
+	srv, calls := recPortalReplies(t, deleteModal(t, "8"))
+	err := openFake(t, srv).deleteApp(context.Background(), 7)
+	if err == nil || len(*calls) != 1 {
+		t.Fatalf("a confirmation for another id must be refused without posting: %v, %d requests", err, len(*calls))
+	}
+}
+
+func TestPortalDeleteInUse(t *testing.T) {
+	srv, calls := recPortalReplies(t, `{"state":"success","dialog":"modal-module-errors","html":"<p>Cannot remove this object, it is used as destination by X</p>"}`,
+		`{"state":"success","dialog":"<p>Cannot remove this object, it is used as destination by X</p>"}`)
+	err := openFake(t, srv).deleteApp(context.Background(), 7)
+	if err == nil || !strings.Contains(err.Error(), "Cannot remove this object") || len(*calls) != 1 {
+		t.Fatalf("in use must fail with the portal's text and one request: %v, %d", err, len(*calls))
 	}
 }
 

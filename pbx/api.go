@@ -161,6 +161,9 @@ func checkReply(r portalReply) error {
 		if json.Unmarshal(r.Dialog, &s) == nil {
 			d = s
 		}
+		if r.HTML != "" { // the dialog may only name the modal; its text is in html
+			d += " " + r.HTML
+		}
 		return fmt.Errorf("el portal rechazó el cambio: %s", strings.Join(strings.Fields(html.UnescapeString(htmlTag.ReplaceAllString(d, " "))), " "))
 	}
 	if r.State != "success" {

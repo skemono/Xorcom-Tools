@@ -2,6 +2,7 @@ package pbx
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -412,8 +413,36 @@ func (cp *CallbackPortal) deletePriority(ctx context.Context, id int) error {
 }
 
 func (cp *CallbackPortal) del(ctx context.Context, class string, id int) error {
-	_, err := cp.pt.request(ctx, class, "delete", "delete", strconv.Itoa(id))
+	sid := strconv.Itoa(id)
+	r, err := cp.pt.request(ctx, class, "delete", "delete", sid)
+	if err == nil {
+		return nil // a portal version that deletes directly
+	}
+	var dialog string
+	if json.Unmarshal(r.Dialog, &dialog) != nil || strings.TrimSpace(dialog) != "modal-module-delete" {
+		return err // e.g. modal-module-errors: still in use
+	}
+	f, ferr := formFields(r.HTML, "modal-form-delete")
+	if ferr != nil {
+		return fmt.Errorf("el portal pidió confirmar un borrado inesperado: %w", ferr)
+	}
+	want := map[string]string{"class": class, "method": "delete", "mode": "deleteConfirmed", "data": sid}
+	for k, v := range want {
+		if !hasFieldValue(f, k, v) {
+			return fmt.Errorf("el portal pidió confirmar un borrado inesperado: falta %s=%s en la confirmación", k, v)
+		}
+	}
+	_, err = cp.pt.call(ctx, f)
 	return err
+}
+
+func hasFieldValue(f [][2]string, name, val string) bool {
+	for _, kv := range f {
+		if kv[0] == name && kv[1] == val {
+			return true
+		}
+	}
+	return false
 }
 
 // formFields returns what a browser's new FormData(form) would send for the form with id formID, in
