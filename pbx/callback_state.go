@@ -23,6 +23,7 @@ type CallbackState struct {
 	File         string              `json:"file"`
 	LogOwner     string              `json:"logOwner"` // "" = no log file
 	Contexts     int                 `json:"contexts"` // how many of the 3 contexts Asterisk has loaded
+	OtherFiles   []string            `json:"otherFiles"` // other dialplan files that define them (a hand-made install)
 	TakenCodes   map[string]bool     `json:"takenCodes"`
 	Waiting      []CallbackWaiting   `json:"waiting"`
 	Categories   map[string]string   `json:"categories"` // destination category name -> id
@@ -142,8 +143,9 @@ func callbackStateScript(codes []string) string {
 	fmt.Fprintf(&b, "echo '%sfile'\nif [ -e %s ]; then echo 1; base64 -w0 %s; echo; fi\n", sectionMark, callbackFile, callbackFile)
 	fmt.Fprintf(&b, "echo '%slog'\nstat -c %%U %s 2>/dev/null\n", sectionMark, callbackLog)
 	fmt.Fprintf(&b, "echo '%scontexts'\nfor c in create_callback check_position callback_out; do asterisk -rx \"dialplan show $c\" | grep -q \"Context '$c'\" && echo $c; done\n", sectionMark)
+	fmt.Fprintf(&b, "echo '%sothers'\ngrep -l -E '^\\[(create_callback|check_position|callback_out)\\]' /etc/asterisk/*.conf /etc/asterisk/ombutel/*.conf 2>/dev/null | grep -v -x -F %s; true\n", sectionMark, callbackFile)
 	fmt.Fprintf(&b, "echo '%staken'\nfor c in %s; do asterisk -rx \"dialplan show $c@cos-all-local\" | grep -q 'There is no existence' || echo $c; done\n", sectionMark, strings.Join(codes, " "))
-	fmt.Fprintf(&b, "echo '%swaiting'\ni=$(asterisk -rx 'database get pbx instance' | sed -n 's/^Value: //p')\nif [ -n \"$i\" ]; then asterisk -rx \"database show $i/callback\"; fi\n", sectionMark)
+	fmt.Fprintf(&b, "echo '%swaiting'\nasterisk -rx 'database show f03callback'\n", sectionMark)
 	return b.String()
 }
 
@@ -164,7 +166,7 @@ func ReadCallbackState(ctx context.Context, p Profile, sec Secrets, codes []stri
 	return parseCallbackState(out)
 }
 
-var reWaiting = regexp.MustCompile(`^/[^/]+/callback/([0-9]+)/([0-9]+\.[0-9]+)\s*:\s*([0-9]*)\s*$`)
+var reWaiting = regexp.MustCompile(`^/f03callback/([0-9]+)/([0-9]+\.[0-9]+)\s*:\s*([0-9]*)\s*$`)
 
 // splitSections cuts a script's output at its "@@f03 <name>" marks; an "error <name>" mark is an error.
 func splitSections(out string) (map[string]string, error) {
@@ -257,6 +259,7 @@ func parseCallbackState(out string) (CallbackState, error) {
 		st.LogOwner = o[0]
 	}
 	st.Contexts = len(lines(sec["contexts"]))
+	st.OtherFiles = lines(sec["others"])
 	for _, c := range lines(sec["taken"]) {
 		st.TakenCodes[c] = true
 	}

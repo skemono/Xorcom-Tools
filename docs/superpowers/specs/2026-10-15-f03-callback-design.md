@@ -90,9 +90,10 @@ Changing the active PBX, the settings, or the selected queues discards the previ
 [create_callback]
 exten => s,1,NoOp(Callback request for queue ${QUEUE_NUMBER})
  same => n,Set(num=${CALLERID(num,${CURRENT_EXTERNAL_CID})})
+ same => n,ExecIf($[${LEN(${num})}=11 & "${num:0:3}"="502"]?Set(num=${num:3}))
  same => n,GotoIf($["${num}"="" | "${FILTER(0-9,${num})}"!="${num}" | "${QUEUE_NUMBER}"=""]?done)
  same => n,Set(id=${MASTER_CHANNEL(UNIQUEID)})
- same => n,Set(DB(${DB(pbx/instance)}/callback/${QUEUE_NUMBER}/${id})=${num})
+ same => n,Set(DB(f03callback/${QUEUE_NUMBER}/${id})=${num})
  same => n,System(printf 'Channel: Local/«prefijo»${num}@cos-all\nCallerID: "«nombre»" <${QUEUE_NUMBER}>\nWaitTime: «ring»\nExtension: s\nContext: callback_out\nMaxRetries: «retries»\nRetryTime: «retry»\nSetvar: CHANNEL(language)=${CHANNEL(language)}\nSetvar: __QUEUE_NUMBER=${QUEUE_NUMBER}\nSetvar: __ORIGINAL_INTERNAL_CID="«nombre»" <${num}>\n' > ${ASTSPOOLDIR}/${id}.call)
  same => n,Set(FILE(/var/log/cpbx/callback.log,,,al)=${STRFTIME(${EPOCH},,%F %T)},${id},${QUEUE_NUMBER},${num})
  same => n,Playback(«grabación»)                   ; only when a recording is chosen
@@ -100,15 +101,15 @@ exten => s,1,NoOp(Callback request for queue ${QUEUE_NUMBER})
 
 [check_position]
 exten => s,1,NoOp(Check position for queue ${QUEUE_NUMBER})
- same => n,Set(waiting_callbacks=${DB_KEYS(${DB(pbx/instance)}/callback/${QUEUE_NUMBER})})
+ same => n,Set(waiting_callbacks=${DB_KEYS(f03callback/${QUEUE_NUMBER})})
  same => n,GotoIf(${ISNULL(${waiting_callbacks})}?:checkcallback)
  same => n,Return()
- same => n(checkcallback),Set(count=${DB_KEYCOUNT(${DB(pbx/instance)}/callback/${QUEUE_NUMBER})})
+ same => n(checkcallback),Set(count=${DB_KEYCOUNT(f03callback/${QUEUE_NUMBER})})
  same => n,Set(first=${CUT(waiting_callbacks,\,,1)})
  same => n,GotoIf($[$[${first}<${MASTER_CHANNEL(UNIQUEID)}]&&$[${count}>0]]?callback)
  same => n,Return()
  same => n(callback),System(mv ${ASTSPOOLDIR}/${first}.call ${ASTSPOOLDIR}/outgoing/${first}.call)
- same => n,DBdeltree(${DB(pbx/instance)}/callback/${QUEUE_NUMBER}/${first})
+ same => n,DBdeltree(f03callback/${QUEUE_NUMBER}/${first})
  same => n,Return()
 
 [callback_out]
@@ -121,6 +122,8 @@ exten => s,1,NoOp(Callback answered, back to queue ${QUEUE_NUMBER})
 ```
 
 Why each change from the article:
+- **Fixed AstDB family `f03callback`.** The article keys requests under `${DB(pbx/instance)}`, but the portal rebuilds that tree under a new instance id (seen on a production client: a new id after a portal Apply on 2026-10-21, three ids in two days, always one tree of ~950 keys). Every waiting callback would be lost, its `.call` file held in the spool forever. A top-level family survives, like Asterisk's own `Queue` and `SIP` families.
+- **502 dropped.** Carriers deliver many Guatemalan callers as 11 digits (`502` + 8), but users and routes dial 8. An 11-digit number that starts with `502` is called back as its last 8 digits (seen on a production client, 2026-10-21: 335 of ~590 queue callers in a week came as `502…`).
 - **Digits-only check.** The caller's number ends up in a shell command (`System`), and a trunk caller ID is outside our control. Hidden or blank numbers cannot be called back, so they just hang up.
 - **Straight quotes, `printf`.** The article's `”` quotes break the shell. `printf` reads `\n` the same way in dash and bash.
 - **`Return()` kept from the article.** The portal runs the context with `Gosub(create_callback,s,1)` and then its own `Gosub(app-termination,hangup,1)` cleanup (confirmed on the test box), and its form says to end a custom context with `Return()`. The optional confirmation plays right before it.
@@ -135,6 +138,8 @@ Settings validation:
 - the recording comes from the portal's list
 
 The generator is a pure function with a reference-copy unit test.
+
+**A hand-made install blocks Aplicar.** If another file in `/etc/asterisk` or `/etc/asterisk/ombutel` defines `create_callback`, `check_position` or `callback_out` (the article copied by hand), the file step is blocked: both files would load and Asterisk would mix their lines. The fix is to move that file out of `/etc/asterisk` without reloading; F-03's Aplicar then swaps the contexts in one `dialplan reload`.
 
 **Known limits, inherited from the article and accepted:**
 - A callback is released only when an agent answers a caller who arrived after it. On a quiet queue it waits.

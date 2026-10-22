@@ -301,7 +301,8 @@ func queueNow(q CallbackQueue) string {
 }
 
 // fileStep compares the installed file with want. Equal content counts as installed only if Asterisk
-// has the 3 contexts loaded; otherwise the step rewrites it and reloads.
+// has the 3 contexts loaded; otherwise the step rewrites it and reloads. A hand-made copy of the contexts
+// in another file blocks it: both would load and Asterisk would mix their lines.
 func fileStep(st CallbackState, want string) CallbackStep {
 	before := "no existe"
 	if st.FileExists {
@@ -310,7 +311,11 @@ func fileStep(st CallbackState, want string) CallbackStep {
 			before = "igual"
 		}
 	}
-	return step(StepFile, "", "", "Archivo extensions__65-callback.conf", before, "contenido de la vista previa", st.FileExists && st.File == want && st.Contexts == 3, "")
+	block := ""
+	if len(st.OtherFiles) > 0 {
+		block = fmt.Sprintf("la devolución de llamada ya está definida a mano en %s: sáquelo de /etc/asterisk (sin recargar) y vuelva a leer el estado; Aplicar cambia a la de F-03 en una sola recarga", strings.Join(st.OtherFiles, ", "))
+	}
+	return step(StepFile, "", "", "Archivo extensions__65-callback.conf", before, "contenido de la vista previa", st.FileExists && st.File == want && st.Contexts == 3, block)
 }
 
 // PlanInstall lists every step Aplicar takes to put callback on queues, in run order.

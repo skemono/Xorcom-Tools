@@ -125,8 +125,9 @@ func cannedState(file string) string {
 		"@@f03 file\n1\n" + b64 + "\n" +
 		"@@f03 log\nasterisk\n" +
 		"@@f03 contexts\ncreate_callback\ncheck_position\ncallback_out\n" +
+		"@@f03 others\n/etc/asterisk/ombutel/extensions__65-custom.conf\n" +
 		"@@f03 taken\n799\n797\n" +
-		"@@f03 waiting\n/abc123/callback/7599/1760550000.12          : 55551234\n1 results found.\n"
+		"@@f03 waiting\n/f03callback/7599/1760550000.12          : 55551234\n1 results found.\n"
 }
 
 func TestParseCallbackState(t *testing.T) {
@@ -156,6 +157,9 @@ func TestParseCallbackState(t *testing.T) {
 	}
 	if !st.FileExists || st.File != file || st.LogOwner != "asterisk" || st.Contexts != 3 {
 		t.Fatalf("file/log/contexts: %v %q %d", st.FileExists, st.LogOwner, st.Contexts)
+	}
+	if len(st.OtherFiles) != 1 || st.OtherFiles[0] != "/etc/asterisk/ombutel/extensions__65-custom.conf" {
+		t.Fatalf("other files: %v", st.OtherFiles)
 	}
 	if !st.TakenCodes["799"] || !st.TakenCodes["797"] || st.TakenCodes["796"] {
 		t.Fatalf("taken: %v", st.TakenCodes)
@@ -187,7 +191,7 @@ func TestParseCallbackStateFailures(t *testing.T) {
 		t.Fatal("invalid base64 must be an error")
 	}
 	s := callbackStateScript([]string{"799"})
-	for _, w := range []string{`if [ -n "$i" ]; then`, "|| echo '@@f03 error queues'", "awk '" + renderedAwk + "' " + queuesFile + " || echo '@@f03 error rendered'"} {
+	for _, w := range []string{"|| echo '@@f03 error queues'", "| grep -v -x -F " + callbackFile + "; true", "awk '" + renderedAwk + "' " + queuesFile + " || echo '@@f03 error rendered'"} {
 		if !strings.Contains(s, w) {
 			t.Errorf("script lacks %q", w)
 		}
@@ -209,7 +213,7 @@ func TestReadCallbackStateOneSession(t *testing.T) {
 	if len(cmds) != 1 || cmds[0] != "bash -s" {
 		t.Fatalf("one SSH session running the script from stdin, got %q", cmds)
 	}
-	for _, s := range []string{"for c in 799 797; do", "<<'SQL'", "dialplan show $c@cos-all-local", "database get pbx instance"} {
+	for _, s := range []string{"for c in 799 797; do", "<<'SQL'", "dialplan show $c@cos-all-local", "database show f03callback"} {
 		if !strings.Contains(script, s) {
 			t.Errorf("script lacks %q", s)
 		}
@@ -278,6 +282,18 @@ func TestPlanInstallResumesPartial(t *testing.T) {
 	p, _ := PlanInstall(st, DefaultCallbackConfig(), []string{"7510"})
 	if got := kinds(p); got != "file:omitir log:omitir app:omitir ivr:omitir priority:nuevo prioapp:nuevo queue:nuevo" {
 		t.Fatalf("only the missing pieces: %s", got)
+	}
+}
+
+func TestPlanInstallBlocksHandMadeDialplan(t *testing.T) {
+	st := freshPBX()
+	st.Contexts, st.OtherFiles = 3, []string{"/etc/asterisk/ombutel/extensions__65-custom.conf"}
+	p, err := PlanInstall(st, DefaultCallbackConfig(), []string{"7510"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := p.Steps[0]; s.Kind != StepFile || s.Status != CbBlocked || !strings.Contains(s.Error, "extensions__65-custom.conf") {
+		t.Fatalf("a hand-made callback dialplan must block the file step: %+v", s)
 	}
 }
 
@@ -552,7 +568,7 @@ func TestEnsureLogAndDrop(t *testing.T) {
 	if err := DropCallbacks(ctx, p, Secrets{SSH: "pw"}, "7599"); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(cmds[1], "/callback/7599") || !strings.Contains(cmds[1], "database deltree") {
+	if !strings.Contains(cmds[1], "show f03callback/7599") || !strings.Contains(cmds[1], "database deltree") {
 		t.Fatalf("drop: %s", cmds[1])
 	}
 	if err := DropCallbacks(ctx, p, Secrets{SSH: "pw"}, "75;rm"); err == nil {

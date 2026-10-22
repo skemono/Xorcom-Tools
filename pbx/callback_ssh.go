@@ -54,9 +54,8 @@ func DropCallbacks(ctx context.Context, p Profile, sec Secrets, queue string) er
 	if !reDigits.MatchString(queue) {
 		return fmt.Errorf("cola inválida «%s»", queue)
 	}
-	cmd := `set -e; i=$(asterisk -rx 'database get pbx instance' | sed -n 's/^Value: //p'); [ -n "$i" ]; ` +
-		`for id in $(asterisk -rx "database show $i/callback/` + queue + `" | sed -n 's#^/[^/]*/callback/` + queue + `/\([0-9]*\.[0-9]*\) .*#\1#p'); do ` +
-		`rm -f "/var/spool/asterisk/$id.call"; done; asterisk -rx "database deltree $i/callback/` + queue + `" > /dev/null`
+	cmd := `set -e; for id in $(asterisk -rx "database show f03callback/` + queue + `" | sed -n 's#^/f03callback/` + queue + `/\([0-9]*\.[0-9]*\) .*#\1#p'); do ` +
+		`rm -f "/var/spool/asterisk/$id.call"; done; asterisk -rx "database deltree f03callback/` + queue + `" > /dev/null`
 	if _, err := SSHExec(ctx, p, sec.SSH, sec.SSHKey, cmd, nil); err != nil {
 		return fmt.Errorf("no se pudieron descartar las devoluciones pendientes: %w", err)
 	}
