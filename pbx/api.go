@@ -39,7 +39,8 @@ func newPortal(p Profile) (*portal, error) {
 		return nil, fmt.Errorf("URL de API inválida: %q", base)
 	}
 	jar, _ := cookiejar.New(nil)
-	client := &http.Client{Jar: jar, Transport: &http.Transport{TLSClientConfig: PinnedTLS(u.Hostname(), p.API.CertSHA256)}}
+	// One connection per request: a save that reused a keep-alive the box had just closed died as "EOF".
+	client := &http.Client{Jar: jar, Transport: &http.Transport{TLSClientConfig: PinnedTLS(u.Hostname(), p.API.CertSHA256), DisableKeepAlives: true}}
 	return &portal{client: client, jar: jar, base: base, url: u}, nil
 }
 
