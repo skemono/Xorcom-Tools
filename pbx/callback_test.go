@@ -5,14 +5,17 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"mime"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -1249,5 +1252,30 @@ func TestPortalDialogFalseIsNoFailure(t *testing.T) {
 		if (err != nil) != fails || fails && !strings.Contains(err.Error(), "mal") {
 			t.Errorf("%s: want failure %v, got %v", body, fails, err)
 		}
+	}
+}
+
+// A portal POST must never ride an idle keep-alive connection: a production box answered "EOF" when Apache
+// closed it while F-03 spent seconds on its SSH steps between the login and the save.
+func TestPortalOpensAConnectionPerRequest(t *testing.T) {
+	var conns atomic.Int32
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"state":"success"}`)
+	}))
+	srv.Config.ConnState = func(_ net.Conn, s http.ConnState) {
+		if s == http.StateNew {
+			conns.Add(1)
+		}
+	}
+	srv.Start()
+	defer srv.Close()
+	pt, _ := newPortal(Profile{API: APIConfig{BaseURL: srv.URL}})
+	for range 2 {
+		if _, err := pt.call(context.Background(), [][2]string{{"class", "x"}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := conns.Load(); n != 2 {
+		t.Fatalf("2 requests used %d connection(s): keep-alive reuse is back", n)
 	}
 }
