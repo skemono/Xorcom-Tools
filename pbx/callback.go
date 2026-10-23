@@ -121,9 +121,10 @@ const callbackTemplate = `; Utilidades XORCOM F-03 · devolución de llamada en 
 [create_callback]
 exten => s,1,NoOp(Callback request for queue ${QUEUE_NUMBER})
  same => n,Set(num=${CALLERID(num,${CURRENT_EXTERNAL_CID})})
+ same => n,ExecIf($[${LEN(${num})}=11 & "${num:0:3}"="502"]?Set(num=${num:3}))
  same => n,GotoIf($["${num}"="" | "${FILTER(0-9,${num})}"!="${num}" | "${QUEUE_NUMBER}"=""]?done)
  same => n,Set(id=${MASTER_CHANNEL(UNIQUEID)})
- same => n,Set(DB(${DB(pbx/instance)}/callback/${QUEUE_NUMBER}/${id})=${num})
+ same => n,Set(DB(f03callback/${QUEUE_NUMBER}/${id})=${num})
  same => n,System(printf 'Channel: Local/«prefix»${num}@cos-all\nCallerID: "«name»" <${QUEUE_NUMBER}>\nWaitTime: «ring»\nExtension: s\nContext: callback_out\nMaxRetries: «retries»\nRetryTime: «retry»\nSetvar: CHANNEL(language)=${CHANNEL(language)}\nSetvar: __QUEUE_NUMBER=${QUEUE_NUMBER}\nSetvar: __ORIGINAL_INTERNAL_CID="«name»" <${num}>\n' > ${ASTSPOOLDIR}/${id}.call)
  same => n,Set(FILE(/var/log/cpbx/callback.log,,,al)=${STRFTIME(${EPOCH},,%F %T)},${id},${QUEUE_NUMBER},${num})
 «playback»
@@ -131,15 +132,15 @@ exten => s,1,NoOp(Callback request for queue ${QUEUE_NUMBER})
 
 [check_position]
 exten => s,1,NoOp(Check position for queue ${QUEUE_NUMBER})
- same => n,Set(waiting_callbacks=${DB_KEYS(${DB(pbx/instance)}/callback/${QUEUE_NUMBER})})
+ same => n,Set(waiting_callbacks=${DB_KEYS(f03callback/${QUEUE_NUMBER})})
  same => n,GotoIf(${ISNULL(${waiting_callbacks})}?:checkcallback)
  same => n,Return()
- same => n(checkcallback),Set(count=${DB_KEYCOUNT(${DB(pbx/instance)}/callback/${QUEUE_NUMBER})})
+ same => n(checkcallback),Set(count=${DB_KEYCOUNT(f03callback/${QUEUE_NUMBER})})
  same => n,Set(first=${CUT(waiting_callbacks,\,,1)})
  same => n,GotoIf($[$[${first}<${MASTER_CHANNEL(UNIQUEID)}]&&$[${count}>0]]?callback)
  same => n,Return()
  same => n(callback),System(mv ${ASTSPOOLDIR}/${first}.call ${ASTSPOOLDIR}/outgoing/${first}.call)
- same => n,DBdeltree(${DB(pbx/instance)}/callback/${QUEUE_NUMBER}/${first})
+ same => n,DBdeltree(f03callback/${QUEUE_NUMBER}/${first})
  same => n,Return()
 
 [callback_out]

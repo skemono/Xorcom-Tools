@@ -37,6 +37,28 @@ func RemoveCallbackFile(ctx context.Context, p Profile, sec Secrets) error {
 	return nil
 }
 
+const retireDir = "/root/respaldo-f03"
+
+var reHandMade = regexp.MustCompile(`^/etc/asterisk/(ombutel/)?[A-Za-z0-9._-]+\.conf$`)
+
+// RetireHandMade moves hand-made callback files into a dated backup dir, without a reload: Asterisk keeps
+// the old contexts loaded until InstallCallbackFile swaps them for F-03's in one reload.
+func RetireHandMade(ctx context.Context, p Profile, sec Secrets, files []string) error {
+	if len(files) == 0 {
+		return nil
+	}
+	for _, f := range files {
+		if !reHandMade.MatchString(f) || f == callbackFile {
+			return fmt.Errorf("archivo inválido «%s»", f)
+		}
+	}
+	cmd := `set -e; d=` + retireDir + `/$(date +%Y%m%d-%H%M%S); mkdir -p "$d"; mv -- '` + strings.Join(files, `' '`) + `' "$d/"`
+	if _, err := SSHExec(ctx, p, sec.SSH, sec.SSHKey, cmd, nil); err != nil {
+		return fmt.Errorf("no se pudo respaldar la devolución hecha a mano: %w", err)
+	}
+	return nil
+}
+
 // EnsureCallbackLog creates the log with 2 header lines only when it is missing (the article: FILE()
 // needs at least 2 lines), and gives it to asterisk. An existing log is never truncated.
 func EnsureCallbackLog(ctx context.Context, p Profile, sec Secrets) error {
@@ -54,9 +76,8 @@ func DropCallbacks(ctx context.Context, p Profile, sec Secrets, queue string) er
 	if !reDigits.MatchString(queue) {
 		return fmt.Errorf("cola inválida «%s»", queue)
 	}
-	cmd := `set -e; i=$(asterisk -rx 'database get pbx instance' | sed -n 's/^Value: //p'); [ -n "$i" ]; ` +
-		`for id in $(asterisk -rx "database show $i/callback/` + queue + `" | sed -n 's#^/[^/]*/callback/` + queue + `/\([0-9]*\.[0-9]*\) .*#\1#p'); do ` +
-		`rm -f "/var/spool/asterisk/$id.call"; done; asterisk -rx "database deltree $i/callback/` + queue + `" > /dev/null`
+	cmd := `set -e; for id in $(asterisk -rx "database show f03callback/` + queue + `" | sed -n 's#^/f03callback/` + queue + `/\([0-9]*\.[0-9]*\) .*#\1#p'); do ` +
+		`rm -f "/var/spool/asterisk/$id.call"; done; asterisk -rx "database deltree f03callback/` + queue + `" > /dev/null`
 	if _, err := SSHExec(ctx, p, sec.SSH, sec.SSHKey, cmd, nil); err != nil {
 		return fmt.Errorf("no se pudieron descartar las devoluciones pendientes: %w", err)
 	}
