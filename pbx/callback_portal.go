@@ -177,6 +177,8 @@ func (cp *CallbackPortal) guardQueue(ctx context.Context, q CallbackQueue, save 
 func CallbackStepRunner(p Profile, sec Secrets, cp *CallbackPortal, plan CallbackPlan) func(context.Context, CallbackStep) error {
 	return func(ctx context.Context, s CallbackStep) error {
 		switch s.Kind {
+		case StepRetire:
+			return RetireHandMade(ctx, p, sec, plan.Retire)
 		case StepFile:
 			return InstallCallbackFile(ctx, p, sec, plan.Dialplan)
 		case StepDelFile:

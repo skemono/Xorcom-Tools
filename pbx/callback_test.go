@@ -125,7 +125,7 @@ func cannedState(file string) string {
 		"@@f03 file\n1\n" + b64 + "\n" +
 		"@@f03 log\nasterisk\n" +
 		"@@f03 contexts\ncreate_callback\ncheck_position\ncallback_out\n" +
-		"@@f03 others\n/etc/asterisk/ombutel/extensions__65-custom.conf\n" +
+		"@@f03 others\n/etc/asterisk/ombutel/extensions__65-custom.conf\t0\n/etc/asterisk/extensions_custom.conf\t4\n" +
 		"@@f03 taken\n799\n797\n" +
 		"@@f03 waiting\n/f03callback/7599/1760550000.12          : 55551234\n1 results found.\n"
 }
@@ -158,8 +158,8 @@ func TestParseCallbackState(t *testing.T) {
 	if !st.FileExists || st.File != file || st.LogOwner != "asterisk" || st.Contexts != 3 {
 		t.Fatalf("file/log/contexts: %v %q %d", st.FileExists, st.LogOwner, st.Contexts)
 	}
-	if len(st.OtherFiles) != 1 || st.OtherFiles[0] != "/etc/asterisk/ombutel/extensions__65-custom.conf" {
-		t.Fatalf("other files: %v", st.OtherFiles)
+	if len(st.OtherFiles) != 1 || st.OtherFiles[0] != "/etc/asterisk/ombutel/extensions__65-custom.conf" || len(st.MixedFiles) != 1 || st.MixedFiles[0] != "/etc/asterisk/extensions_custom.conf" {
+		t.Fatalf("hand-made files: only the callback contexts %v, with others %v", st.OtherFiles, st.MixedFiles)
 	}
 	if !st.TakenCodes["799"] || !st.TakenCodes["797"] || st.TakenCodes["796"] {
 		t.Fatalf("taken: %v", st.TakenCodes)
@@ -191,7 +191,7 @@ func TestParseCallbackStateFailures(t *testing.T) {
 		t.Fatal("invalid base64 must be an error")
 	}
 	s := callbackStateScript([]string{"799"})
-	for _, w := range []string{"|| echo '@@f03 error queues'", "| grep -v -x -F " + callbackFile + "; true", "awk '" + renderedAwk + "' " + queuesFile + " || echo '@@f03 error rendered'"} {
+	for _, w := range []string{"|| echo '@@f03 error queues'", "| grep -v -x -F " + callbackFile + "); do", "awk '" + renderedAwk + "' " + queuesFile + " || echo '@@f03 error rendered'"} {
 		if !strings.Contains(s, w) {
 			t.Errorf("script lacks %q", w)
 		}
@@ -285,15 +285,34 @@ func TestPlanInstallResumesPartial(t *testing.T) {
 	}
 }
 
-func TestPlanInstallBlocksHandMadeDialplan(t *testing.T) {
+func TestPlanInstallRetiresHandMadeDialplan(t *testing.T) {
 	st := freshPBX()
 	st.Contexts, st.OtherFiles = 3, []string{"/etc/asterisk/ombutel/extensions__65-custom.conf"}
 	p, err := PlanInstall(st, DefaultCallbackConfig(), []string{"7510"})
 	if err != nil {
 		t.Fatal(err)
 	}
+	if got := kinds(p); got != "retire:nuevo file:nuevo log:nuevo app:nuevo ivr:nuevo priority:nuevo prioapp:nuevo queue:nuevo" {
+		t.Fatalf("the hand-made file goes aside first, then F-03's file reloads once: %s", got)
+	}
+	if len(p.Retire) != 1 || p.Retire[0] != st.OtherFiles[0] || !strings.Contains(p.Steps[0].Before, "extensions__65-custom.conf") {
+		t.Fatalf("retire: %+v %+v", p.Retire, p.Steps[0])
+	}
+	st.File, st.FileExists = p.Dialplan, true // F-03's file already in place: it still reloads, or the hand-made copy stays loaded
+	if again, _ := PlanInstall(st, DefaultCallbackConfig(), []string{"7510"}); again.Steps[1].Kind != StepFile || again.Steps[1].Status != CbNew {
+		t.Fatalf("the file step must run while a hand-made copy exists: %s", kinds(again))
+	}
+}
+
+func TestPlanInstallBlocksMixedHandMadeFile(t *testing.T) {
+	st := freshPBX()
+	st.Contexts, st.MixedFiles = 3, []string{"/etc/asterisk/ombutel/extensions__65-custom.conf"}
+	p, err := PlanInstall(st, DefaultCallbackConfig(), []string{"7510"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if s := p.Steps[0]; s.Kind != StepFile || s.Status != CbBlocked || !strings.Contains(s.Error, "extensions__65-custom.conf") {
-		t.Fatalf("a hand-made callback dialplan must block the file step: %+v", s)
+		t.Fatalf("a hand-made file with other contexts must block, never be moved: %+v", s)
 	}
 }
 
@@ -573,6 +592,24 @@ func TestEnsureLogAndDrop(t *testing.T) {
 	}
 	if err := DropCallbacks(ctx, p, Secrets{SSH: "pw"}, "75;rm"); err == nil {
 		t.Fatal("a non-digit queue must never reach the shell")
+	}
+}
+
+func TestRetireHandMade(t *testing.T) {
+	var cmd string
+	addr, fp := fakeSSH(t, func(c string, _ []byte) (string, string, int) { cmd = c; return "", "", 0 })
+	p := sshProfile(t, addr, fp)
+	ctx := context.Background()
+	if err := RetireHandMade(ctx, p, Secrets{SSH: "pw"}, []string{"/etc/asterisk/ombutel/extensions__65-custom.conf"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(cmd, `mkdir -p "$d"`) || !strings.Contains(cmd, `mv -- '/etc/asterisk/ombutel/extensions__65-custom.conf' "$d/"`) || strings.Contains(cmd, "reload") {
+		t.Fatalf("moved aside into a dated backup, without a reload: %s", cmd)
+	}
+	for _, bad := range []string{"/etc/passwd", "/etc/asterisk/x y.conf", "/etc/asterisk/a';rm -rf /;'.conf", callbackFile} {
+		if err := RetireHandMade(ctx, p, Secrets{SSH: "pw"}, []string{bad}); err == nil {
+			t.Errorf("%q must never reach the shell", bad)
+		}
 	}
 }
 

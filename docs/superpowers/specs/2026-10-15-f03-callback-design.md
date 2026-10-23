@@ -139,7 +139,9 @@ Settings validation:
 
 The generator is a pure function with a reference-copy unit test.
 
-**A hand-made install blocks Aplicar.** If another file in `/etc/asterisk` or `/etc/asterisk/ombutel` defines `create_callback`, `check_position` or `callback_out` (the article copied by hand), the file step is blocked: both files would load and Asterisk would mix their lines. The fix is to move that file out of `/etc/asterisk` without reloading; F-03's Aplicar then swaps the contexts in one `dialplan reload`.
+**A hand-made install is moved aside.** The state lists every other file in `/etc/asterisk` or `/etc/asterisk/ombutel` that defines `create_callback`, `check_position` or `callback_out` (the article copied by hand). Both would load and Asterisk would mix their lines, so:
+- a file that holds **only** those contexts gets a first step, **retire**: `mv` into `/root/respaldo-f03/<fecha-hora>/`, without a reload. Asterisk keeps the old contexts until the file step swaps them for F-03's in one `dialplan reload`. The file step always runs while such a copy exists. Read-back: the file is gone from `/etc/asterisk`.
+- a file that **also** holds other contexts blocks the file step: F-03 never moves what is not only callback. The technician removes the three contexts from it by hand.
 
 **Known limits, inherited from the article and accepted:**
 - A callback is released only when an agent answers a caller who arrived after it. On a quiet queue it waits.

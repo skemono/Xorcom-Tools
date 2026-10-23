@@ -22,9 +22,11 @@ const (
 	CbNotRun  = "no_ejecutado"
 )
 
-// Step kinds. Install runs file, log, app, ivr, then per queue priority, prioapp, queue (the step that
-// touches live calls last). Quitar runs per queue detach, delprioapp, delpriority, dropwaiting, then the shared pieces.
+// Step kinds. Install runs retire (only over a hand-made copy), file, log, app, ivr, then per queue priority,
+// prioapp, queue (the step that touches live calls last). Quitar runs per queue detach, delprioapp, delpriority,
+// dropwaiting, then the shared pieces.
 const (
+	StepRetire      = "retire"
 	StepFile        = "file"
 	StepLog         = "log"
 	StepApp         = "app"
@@ -68,6 +70,7 @@ type CallbackPlan struct {
 	Queues      []string        `json:"queues"`
 	Routes      []CallbackRoute `json:"routes"`
 	Dialplan    string          `json:"dialplan"`
+	Retire      []string        `json:"retire"` // hand-made files the retire step moves aside
 	Steps       []CallbackStep  `json:"steps"`
 	FileWaits   bool            `json:"fileWaits"` // Quitar: the file step waits for the portal's Apply (fileWaitText)
 }
@@ -301,8 +304,8 @@ func queueNow(q CallbackQueue) string {
 }
 
 // fileStep compares the installed file with want. Equal content counts as installed only if Asterisk
-// has the 3 contexts loaded; otherwise the step rewrites it and reloads. A hand-made copy of the contexts
-// in another file blocks it: both would load and Asterisk would mix their lines.
+// has the 3 contexts loaded and no hand-made copy is still loaded; otherwise the step rewrites it and reloads.
+// A hand-made file that also holds other contexts blocks it: F-03 never moves what is not only callback.
 func fileStep(st CallbackState, want string) CallbackStep {
 	before := "no existe"
 	if st.FileExists {
@@ -312,10 +315,21 @@ func fileStep(st CallbackState, want string) CallbackStep {
 		}
 	}
 	block := ""
-	if len(st.OtherFiles) > 0 {
-		block = fmt.Sprintf("la devolución de llamada ya está definida a mano en %s: sáquelo de /etc/asterisk (sin recargar) y vuelva a leer el estado; Aplicar cambia a la de F-03 en una sola recarga", strings.Join(st.OtherFiles, ", "))
+	if len(st.MixedFiles) > 0 {
+		block = fmt.Sprintf("la devolución de llamada ya está definida a mano en %s, junto con otros contextos: quite de ahí create_callback, check_position y callback_out (sin recargar) y vuelva a leer el estado", strings.Join(st.MixedFiles, ", "))
 	}
-	return step(StepFile, "", "", "Archivo extensions__65-callback.conf", before, "contenido de la vista previa", st.FileExists && st.File == want && st.Contexts == 3, block)
+	done := st.FileExists && st.File == want && st.Contexts == 3 && len(st.OtherFiles) == 0
+	return step(StepFile, "", "", "Archivo extensions__65-callback.conf", before, "contenido de la vista previa", done, block)
+}
+
+// retireStep moves aside hand-made files that hold only the callback contexts; nil when there are none.
+// It does not reload: Asterisk keeps the old contexts until the file step swaps them in one reload.
+func retireStep(st CallbackState) []CallbackStep {
+	if len(st.OtherFiles) == 0 {
+		return nil
+	}
+	return []CallbackStep{step(StepRetire, "", "", "Devolución instalada a mano", strings.Join(st.OtherFiles, ", "),
+		"se mueve a "+retireDir+"/<fecha-hora>/ sin recargar; el archivo de F-03 la reemplaza", false, "")}
 }
 
 // PlanInstall lists every step Aplicar takes to put callback on queues, in run order.
@@ -418,7 +432,7 @@ func PlanInstall(st CallbackState, c CallbackConfig, queues []string) (CallbackP
 		}
 	}
 	sort.Slice(routes, func(i, j int) bool { return routes[i].Queue < routes[j].Queue })
-	plan := CallbackPlan{Config: c, Queues: uniq, Routes: routes, Dialplan: CallbackDialplan(c, playback, routes)}
+	plan := CallbackPlan{Config: c, Queues: uniq, Routes: routes, Dialplan: CallbackDialplan(c, playback, routes), Retire: st.OtherFiles}
 	appBlock := ""
 	if app == nil && st.codeTaken(c.AppCode) {
 		appBlock = fmt.Sprintf("el código %s ya está en uso en la PBX: elija otro", c.AppCode)
@@ -436,14 +450,13 @@ func PlanInstall(st CallbackState, c CallbackConfig, queues []string) (CallbackP
 	if ivrAfter != "" {
 		ivrStep.After = ivrAfter
 	}
-	plan.Steps = append([]CallbackStep{
+	plan.Steps = append(append(retireStep(st),
 		fileStep(st, plan.Dialplan),
 		step(StepLog, "", "", "Registro /var/log/cpbx/callback.log", logBefore,
 			"existe, dueño asterisk", st.LogOwner == "asterisk", ""),
 		step(StepApp, "", appCode, fmt.Sprintf("Aplicación %s «Callback»", appCode), exists(app != nil),
 			"→ Custom "+callbackTarget, app != nil, appBlock),
-		ivrStep,
-	}, perQueue...)
+		ivrStep), perQueue...)
 	return plan, nil
 }
 
@@ -591,6 +604,8 @@ func VerifyCallback(plan CallbackPlan, steps []CallbackStep, st CallbackState) [
 		}
 		ok := true
 		switch s.Kind {
+		case StepRetire:
+			ok = len(st.OtherFiles) == 0
 		case StepFile:
 			ok = st.FileExists && st.File == plan.Dialplan && st.Contexts == 3
 		case StepLog:

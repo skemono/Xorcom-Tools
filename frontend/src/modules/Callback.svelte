@@ -58,7 +58,7 @@
   const fileWaits = $derived(mode === 'remove' && !!preview?.plan.fileWaits)
   const waitsDelete = $derived(!!preview?.plan.steps?.some((s) => s.kind === 'delfile'))
   // The log, the waiting list and a file delete need no portal Apply; everything else does.
-  const needsReload = $derived(!!result?.steps?.some((s) => s.status === 'aplicado' && !['log', 'dropwaiting', 'delfile'].includes(s.kind)))
+  const needsReload = $derived(!!result?.steps?.some((s) => s.status === 'aplicado' && !['retire', 'log', 'dropwaiting', 'delfile'].includes(s.kind)))
   const lit = $derived(!st?.hasCC ? 0 : !canPreview ? 3 : !preview ? 4 : !result ? 5 : needsReload && !portalMsg ? 6 : 0)
   const tilts = ['-3deg', '-1.5deg', '-4.5deg']
 
